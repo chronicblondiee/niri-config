@@ -9,6 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WAYBAR_DIR="$HOME/.config/waybar"
 NIRI_CONFIG_DIR="$HOME/.config/niri"
+SWAYLOCK_CONFIG_DIR="$HOME/.config/swaylock"
 
 # Colors
 RED='\033[0;31m'
@@ -90,7 +91,7 @@ fi
 echo
 info "Step 2: Install packages"
 
-PACKAGES=(niri swayidle swaylock xwayland-satellite)
+PACKAGES=(niri swayidle swaylock xwayland-satellite xdg-desktop-portal-gnome)
 MISSING=()
 
 for pkg in "${PACKAGES[@]}"; do
@@ -132,6 +133,29 @@ if [[ -f "$NIRI_CONFIG_DIR/config.kdl" ]]; then
 else
     cp "$SCRIPT_DIR/config/niri/config.kdl" "$NIRI_CONFIG_DIR/config.kdl"
     ok "Niri config installed to $NIRI_CONFIG_DIR/config.kdl"
+fi
+
+# ─────────────────────────────────────────────
+# Step 3b: Copy swaylock config
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3b: Install swaylock config"
+
+mkdir -p "$SWAYLOCK_CONFIG_DIR"
+
+if [[ -f "$SWAYLOCK_CONFIG_DIR/config" ]]; then
+    ok "Swaylock config already exists at $SWAYLOCK_CONFIG_DIR/config"
+    if confirm "Overwrite with repo version?" "n"; then
+        backup_file "$SWAYLOCK_CONFIG_DIR/config"
+        cp "$SCRIPT_DIR/config/swaylock/config" "$SWAYLOCK_CONFIG_DIR/config"
+        ok "Swaylock config updated"
+    else
+        warn "Keeping existing swaylock config"
+    fi
+else
+    cp "$SCRIPT_DIR/config/swaylock/config" "$SWAYLOCK_CONFIG_DIR/config"
+    ok "Swaylock config installed to $SWAYLOCK_CONFIG_DIR/config"
 fi
 
 # ─────────────────────────────────────────────
@@ -291,6 +315,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo
 info "What was set up:"
 echo "  - Niri config:    $NIRI_CONFIG_DIR/config.kdl"
+echo "  - Swaylock:       $SWAYLOCK_CONFIG_DIR/config"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:    /usr/share/wayland-sessions/niri.desktop"
 echo "  - Waybar:         Patched for dual-compositor support"

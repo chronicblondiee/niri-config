@@ -11,7 +11,7 @@ Run [niri](https://github.com/YaLTeR/niri) alongside [Hyprland](https://hyprland
 ## Quick Install
 
 ```bash
-git clone <repo-url> ~/Projects/niri
+git clone git@github.com:chronicblondiee/niri-config.git ~/Projects/niri
 cd ~/Projects/niri
 ./install.sh
 ```
@@ -23,7 +23,7 @@ The installer is interactive — it checks prerequisites, installs packages, cop
 ### 1. Install packages
 
 ```bash
-sudo pacman -S --needed niri swayidle swaylock xwayland-satellite
+sudo pacman -S --needed niri swayidle swaylock xwayland-satellite xdg-desktop-portal-gnome
 ```
 
 | Package | Purpose |
@@ -32,12 +32,16 @@ sudo pacman -S --needed niri swayidle swaylock xwayland-satellite
 | `swayidle` | Idle manager (replaces hypridle) |
 | `swaylock` | Lock screen (replaces hyprlock) |
 | `xwayland-satellite` | X11 app compatibility for niri |
+| `xdg-desktop-portal-gnome` | Screen sharing, file dialogs (niri uses GNOME portal) |
 
-### 2. Install niri config
+### 2. Install configs
 
 ```bash
 mkdir -p ~/.config/niri
 cp config/niri/config.kdl ~/.config/niri/config.kdl
+
+mkdir -p ~/.config/swaylock
+cp config/swaylock/config ~/.config/swaylock/config
 ```
 
 Edit the `output` section at the top of `config.kdl` for your monitors.
@@ -208,6 +212,8 @@ Edit this for your setup. Run `niri msg outputs` (while niri is running) to list
 ├── config/
 │   ├── niri/
 │   │   └── config.kdl         # Niri compositor config
+│   ├── swaylock/
+│   │   └── config             # OLED-friendly lock screen config
 │   └── waybar/
 │       └── modules-niri.json  # niri/workspaces module snippet
 ├── sessions/
@@ -227,8 +233,9 @@ Edit this for your setup. Run `niri msg outputs` (while niri is running) to list
 To fully reverse the installation:
 
 ```bash
-# Remove niri config
+# Remove niri and swaylock configs
 rm -rf ~/.config/niri
+rm -rf ~/.config/swaylock
 
 # Remove session files
 rm ~/.local/bin/start-niri.sh
@@ -242,5 +249,5 @@ ls ~/.config/waybar/*.bak* ~/.config/waybar/themes/ml4w-glass-center/*.bak* 2>/d
 # (or restore from .bak files)
 
 # Uninstall packages (optional — only if nothing else uses them)
-sudo pacman -Rns niri swayidle swaylock xwayland-satellite
+sudo pacman -Rns niri swayidle swaylock xwayland-satellite xdg-desktop-portal-gnome
 ```

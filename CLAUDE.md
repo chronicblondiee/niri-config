@@ -8,6 +8,7 @@ Installer repo for running niri alongside Hyprland with ML4W dotfiles on Arch Li
 
 - `install.sh` — Main installer script (bash, interactive)
 - `config/niri/config.kdl` — Niri compositor config (KDL format)
+- `config/swaylock/config` — OLED-friendly swaylock config (Catppuccin dark)
 - `config/waybar/modules-niri.json` — Waybar module snippet for niri workspace support
 - `sessions/start-niri.sh` — Session startup wrapper called by SDDM
 - `sessions/niri.desktop` — SDDM wayland session entry
