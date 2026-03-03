@@ -45,67 +45,6 @@ backup_file() {
     fi
 }
 
-# Detect connected monitors and generate niri output blocks
-detect_monitors() {
-    local output_blocks=""
-
-    # Method 1: niri msg outputs (if niri is running)
-    if command -v niri &>/dev/null && niri msg outputs &>/dev/null 2>&1; then
-        info "Detecting monitors via niri..."
-        local current_name="" current_mode=""
-        local re_output='^Output .* \(([^)]+)\)$'
-        local re_mode='^  Current mode: ([0-9]+x[0-9]+) @ ([0-9.]+) Hz'
-        while IFS= read -r line; do
-            if [[ "$line" =~ $re_output ]]; then
-                if [[ -n "$current_name" && -n "$current_mode" ]]; then
-                    output_blocks+="output \"$current_name\" {\n    mode \"$current_mode\"\n}\n\n"
-                fi
-                current_name="${BASH_REMATCH[1]}"
-                current_mode=""
-            elif [[ "$line" =~ $re_mode ]]; then
-                current_mode="${BASH_REMATCH[1]}@${BASH_REMATCH[2]}"
-            fi
-        done < <(niri msg outputs 2>/dev/null)
-        if [[ -n "$current_name" && -n "$current_mode" ]]; then
-            output_blocks+="output \"$current_name\" {\n    mode \"$current_mode\"\n}\n\n"
-        fi
-
-    # Method 2: DRM sysfs fallback (works from TTY, no compositor needed)
-    else
-        info "Detecting monitors via DRM sysfs..."
-        for connector_dir in /sys/class/drm/card*-*/; do
-            local connector_status
-            connector_status=$(cat "$connector_dir/status" 2>/dev/null) || continue
-            if [[ "$connector_status" == "connected" ]]; then
-                local connector_name
-                connector_name=$(basename "$connector_dir" | sed 's/^card[0-9]*-//')
-                local preferred_mode
-                preferred_mode=$(head -1 "$connector_dir/modes" 2>/dev/null) || continue
-                if [[ -n "$preferred_mode" ]]; then
-                    output_blocks+="output \"$connector_name\" {\n    mode \"$preferred_mode\"\n}\n\n"
-                fi
-            fi
-        done
-    fi
-
-    echo -e "$output_blocks"
-}
-
-# Inject output blocks into the installed niri config
-inject_outputs() {
-    local config_file="$1"
-    local output_blocks="$2"
-
-    if [[ -z "$output_blocks" ]]; then
-        warn "No monitors detected, leaving output section empty (niri will auto-detect)"
-        sed -i '/^\/\/ OUTPUT_BLOCK_START$/,/^\/\/ OUTPUT_BLOCK_END$/c\// (no outputs configured — niri will auto-detect)' "$config_file"
-        return
-    fi
-
-    local replacement
-    replacement="// OUTPUT_BLOCK_START\n${output_blocks}// OUTPUT_BLOCK_END"
-    sed -i "/^\/\/ OUTPUT_BLOCK_START$/,/^\/\/ OUTPUT_BLOCK_END$/c\\${replacement}" "$config_file"
-}
 
 # ─────────────────────────────────────────────
 # Step 1: Check prerequisites
@@ -177,41 +116,11 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 3a: Detect monitors and configure outputs
+# Step 3a: Copy swaylock config
 # ─────────────────────────────────────────────
 
 echo
-info "Step 3a: Detect and configure monitor outputs"
-
-if grep -q 'OUTPUT_BLOCK_START' "$NIRI_CONFIG_DIR/config.kdl"; then
-    DETECTED_OUTPUTS=$(detect_monitors)
-
-    if [[ -n "$DETECTED_OUTPUTS" ]]; then
-        echo
-        info "Detected monitors:"
-        echo -e "$DETECTED_OUTPUTS" | sed 's/^/  /'
-        echo
-        if confirm "Apply these monitor settings to niri config?"; then
-            inject_outputs "$NIRI_CONFIG_DIR/config.kdl" "$DETECTED_OUTPUTS"
-            ok "Monitor outputs configured"
-        else
-            inject_outputs "$NIRI_CONFIG_DIR/config.kdl" ""
-            warn "Skipped — niri will auto-detect monitors at runtime"
-        fi
-    else
-        inject_outputs "$NIRI_CONFIG_DIR/config.kdl" ""
-        warn "No monitors detected — niri will auto-detect at runtime"
-    fi
-else
-    ok "Output section already configured (no placeholder markers found)"
-fi
-
-# ─────────────────────────────────────────────
-# Step 3b: Copy swaylock config
-# ─────────────────────────────────────────────
-
-echo
-info "Step 3b: Install swaylock config"
+info "Step 3a: Install swaylock config"
 
 mkdir -p "$SWAYLOCK_CONFIG_DIR"
 
@@ -369,6 +278,6 @@ echo "  - wlogout:        $WLOGOUT_DIR/layout"
 echo
 info "Next steps:"
 echo "  1. Log out and select 'Niri' from the SDDM session picker"
-echo "  2. To customize monitor settings later, edit the output section in:"
-echo "     $NIRI_CONFIG_DIR/config.kdl"
+echo "  2. To customize monitor settings, edit the output section in:"
+echo "     $NIRI_CONFIG_DIR/config.kdl (run 'niri msg outputs' for details)"
 echo
