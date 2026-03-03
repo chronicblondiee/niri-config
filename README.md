@@ -164,22 +164,72 @@ niri validate
 
 ## Monitors
 
-The `output` section in `config.kdl` is hardware-specific:
+Monitor configuration lives in the `output` blocks at the top of `config.kdl`. Niri hot-reloads the config on save, so changes apply immediately.
+
+### Finding your outputs
+
+While niri is running:
+
+```bash
+niri msg outputs
+```
+
+This prints each output's connector name (e.g. `eDP-1`, `DP-1`, `HDMI-A-1`), current mode, available modes, scale, and transform.
+
+From a TTY (no compositor running), check DRM sysfs:
+
+```bash
+# List connected outputs
+for d in /sys/class/drm/card*-*/; do
+    [ "$(cat "$d/status" 2>/dev/null)" = "connected" ] && echo "$(basename "$d" | sed 's/^card[0-9]*-//') — $(head -1 "$d/modes")"
+done
+```
+
+### Configuration options
+
+Edit `~/.config/niri/config.kdl` (or `config/niri/config.kdl` in the repo):
 
 ```kdl
+output "eDP-1" {
+    mode "1920x1080@60.001"
+    scale 1.0
+}
+```
+
+Each `output` block supports:
+
+| Property | Description | Example |
+|----------|-------------|---------|
+| `mode` | Resolution and refresh rate | `"2560x1440@143.995"` |
+| `scale` | UI scaling factor (1.0 = no scaling) | `1.0`, `1.25`, `1.5`, `2.0` |
+| `position` | Pixel position in the layout | `x=1920 y=0` |
+| `transform` | Rotation | `"normal"`, `"90"`, `"180"`, `"270"` |
+
+### Multi-monitor example
+
+```kdl
+// Vertical monitor on the left
 output "DP-2" {
     mode "2560x1440@143.995"
     position x=0 y=-560
     transform "270"
 }
 
+// Ultrawide as primary
 output "DP-1" {
     mode "3440x1440@239.991"
     position x=1440 y=0
 }
 ```
 
-Edit this for your setup. Run `niri msg outputs` (while niri is running) to list available outputs.
+Position values are in physical pixels. Use `niri msg outputs` to check logical vs physical sizes when calculating positions.
+
+### Tips
+
+- Omit the `output` block entirely to let niri auto-detect (uses preferred mode, scale 1.0)
+- Set `scale 1.0` explicitly to prevent niri from auto-scaling on HiDPI panels
+- Available modes are listed in `niri msg outputs` — use the exact `WxH@rate` string
+- Changes take effect immediately on save (no restart needed)
 
 ## Repo Structure
 
