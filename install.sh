@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Niri Dual-Compositor Installer
-# Sets up niri alongside an existing Hyprland + ML4W installation
+# Niri Standalone Installer
+# Sets up niri as a standalone compositor on Arch Linux
 #
 
 set -euo pipefail
@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WAYBAR_DIR="$HOME/.config/waybar"
 NIRI_CONFIG_DIR="$HOME/.config/niri"
 SWAYLOCK_CONFIG_DIR="$HOME/.config/swaylock"
+WLOGOUT_DIR="$HOME/.config/wlogout"
 
 # Colors
 RED='\033[0;31m'
@@ -44,45 +45,85 @@ backup_file() {
     fi
 }
 
+# Detect connected monitors and generate niri output blocks
+detect_monitors() {
+    local output_blocks=""
+
+    # Method 1: niri msg outputs (if niri is running)
+    if command -v niri &>/dev/null && niri msg outputs &>/dev/null 2>&1; then
+        info "Detecting monitors via niri..."
+        local current_name="" current_mode=""
+        local re_output='^Output .* \(([^)]+)\)$'
+        local re_mode='^  Current mode: ([0-9]+x[0-9]+) @ ([0-9.]+) Hz'
+        while IFS= read -r line; do
+            if [[ "$line" =~ $re_output ]]; then
+                if [[ -n "$current_name" && -n "$current_mode" ]]; then
+                    output_blocks+="output \"$current_name\" {\n    mode \"$current_mode\"\n}\n\n"
+                fi
+                current_name="${BASH_REMATCH[1]}"
+                current_mode=""
+            elif [[ "$line" =~ $re_mode ]]; then
+                current_mode="${BASH_REMATCH[1]}@${BASH_REMATCH[2]}"
+            fi
+        done < <(niri msg outputs 2>/dev/null)
+        if [[ -n "$current_name" && -n "$current_mode" ]]; then
+            output_blocks+="output \"$current_name\" {\n    mode \"$current_mode\"\n}\n\n"
+        fi
+
+    # Method 2: DRM sysfs fallback (works from TTY, no compositor needed)
+    else
+        info "Detecting monitors via DRM sysfs..."
+        for connector_dir in /sys/class/drm/card*-*/; do
+            local connector_status
+            connector_status=$(cat "$connector_dir/status" 2>/dev/null) || continue
+            if [[ "$connector_status" == "connected" ]]; then
+                local connector_name
+                connector_name=$(basename "$connector_dir" | sed 's/^card[0-9]*-//')
+                local preferred_mode
+                preferred_mode=$(head -1 "$connector_dir/modes" 2>/dev/null) || continue
+                if [[ -n "$preferred_mode" ]]; then
+                    output_blocks+="output \"$connector_name\" {\n    mode \"$preferred_mode\"\n}\n\n"
+                fi
+            fi
+        done
+    fi
+
+    echo -e "$output_blocks"
+}
+
+# Inject output blocks into the installed niri config
+inject_outputs() {
+    local config_file="$1"
+    local output_blocks="$2"
+
+    if [[ -z "$output_blocks" ]]; then
+        warn "No monitors detected, leaving output section empty (niri will auto-detect)"
+        sed -i '/^\/\/ OUTPUT_BLOCK_START$/,/^\/\/ OUTPUT_BLOCK_END$/c\// (no outputs configured — niri will auto-detect)' "$config_file"
+        return
+    fi
+
+    local replacement
+    replacement="// OUTPUT_BLOCK_START\n${output_blocks}// OUTPUT_BLOCK_END"
+    sed -i "/^\/\/ OUTPUT_BLOCK_START$/,/^\/\/ OUTPUT_BLOCK_END$/c\\${replacement}" "$config_file"
+}
+
 # ─────────────────────────────────────────────
 # Step 1: Check prerequisites
 # ─────────────────────────────────────────────
 
 echo
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Niri Dual-Compositor Installer"
+echo "  Niri Standalone Installer"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo
 
 info "Checking prerequisites..."
 
-# Check Arch-based
 if ! command -v pacman &>/dev/null; then
     err "pacman not found. This installer requires Arch Linux or a derivative."
     exit 1
 fi
 ok "Arch-based system detected"
-
-# Check Hyprland
-if ! command -v Hyprland &>/dev/null; then
-    warn "Hyprland not found. This installer is designed to work alongside Hyprland."
-    if ! confirm "Continue anyway?" "n"; then
-        exit 1
-    fi
-else
-    ok "Hyprland found"
-fi
-
-# Check ML4W
-if [[ -d "$HOME/.config/ml4w" ]]; then
-    ok "ML4W dotfiles found"
-else
-    warn "ML4W dotfiles not found at ~/.config/ml4w"
-    warn "Waybar integration assumes ML4W directory structure."
-    if ! confirm "Continue anyway?" "n"; then
-        exit 1
-    fi
-fi
 
 # ─────────────────────────────────────────────
 # Step 2: Install packages
@@ -136,6 +177,36 @@ else
 fi
 
 # ─────────────────────────────────────────────
+# Step 3a: Detect monitors and configure outputs
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3a: Detect and configure monitor outputs"
+
+if grep -q 'OUTPUT_BLOCK_START' "$NIRI_CONFIG_DIR/config.kdl"; then
+    DETECTED_OUTPUTS=$(detect_monitors)
+
+    if [[ -n "$DETECTED_OUTPUTS" ]]; then
+        echo
+        info "Detected monitors:"
+        echo -e "$DETECTED_OUTPUTS" | sed 's/^/  /'
+        echo
+        if confirm "Apply these monitor settings to niri config?"; then
+            inject_outputs "$NIRI_CONFIG_DIR/config.kdl" "$DETECTED_OUTPUTS"
+            ok "Monitor outputs configured"
+        else
+            inject_outputs "$NIRI_CONFIG_DIR/config.kdl" ""
+            warn "Skipped — niri will auto-detect monitors at runtime"
+        fi
+    else
+        inject_outputs "$NIRI_CONFIG_DIR/config.kdl" ""
+        warn "No monitors detected — niri will auto-detect at runtime"
+    fi
+else
+    ok "Output section already configured (no placeholder markers found)"
+fi
+
+# ─────────────────────────────────────────────
 # Step 3b: Copy swaylock config
 # ─────────────────────────────────────────────
 
@@ -184,13 +255,11 @@ fi
 SESSION_FILE="/usr/share/wayland-sessions/niri.desktop"
 if [[ -f "$SESSION_FILE" ]]; then
     ok "SDDM session entry already exists"
-    # Check if it points to our start script
     if grep -q "start-niri.sh" "$SESSION_FILE"; then
         ok "Session entry already points to start-niri.sh"
     else
         info "Current session entry uses: $(grep '^Exec=' "$SESSION_FILE")"
         if confirm "Update to use start-niri.sh wrapper?" "y"; then
-            # Generate desktop entry with correct home path
             sed "s|/home/brown|$HOME|g" "$SCRIPT_DIR/sessions/niri.desktop" | sudo tee "$SESSION_FILE" >/dev/null
             ok "SDDM session entry updated"
         fi
@@ -206,93 +275,69 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 5: Patch waybar
+# Step 5: Install scripts
 # ─────────────────────────────────────────────
 
 echo
-info "Step 5: Patch waybar for compositor portability"
+info "Step 5: Install niri scripts"
 
-# 5a. Add niri/workspaces module to modules.json
-MODULES_FILE="$WAYBAR_DIR/modules.json"
-if [[ -f "$MODULES_FILE" ]]; then
-    if grep -q '"niri/workspaces"' "$MODULES_FILE"; then
-        ok "niri/workspaces module already in modules.json"
-    else
-        info "Adding niri/workspaces module to modules.json"
-        if confirm "Patch $MODULES_FILE?"; then
-            backup_file "$MODULES_FILE"
-            cp "$SCRIPT_DIR/dotfiles/waybar/modules.json" "$MODULES_FILE"
-            ok "modules.json updated with niri/workspaces"
-        fi
+SCRIPTS_DIR="$NIRI_CONFIG_DIR/scripts"
+mkdir -p "$SCRIPTS_DIR"
+
+for script in "$SCRIPT_DIR"/scripts/*.sh; do
+    script_name=$(basename "$script")
+    dest="$SCRIPTS_DIR/$script_name"
+    if [[ -f "$dest" ]]; then
+        backup_file "$dest"
     fi
-else
-    warn "modules.json not found at $MODULES_FILE"
-fi
-
-# 5b. Detect active waybar theme and patch its config
-THEME_SETTING="$HOME/.config/ml4w/settings/waybar-theme.sh"
-if [[ -f "$THEME_SETTING" ]]; then
-    THEME_STYLE=$(cat "$THEME_SETTING")
-    IFS=';' read -ra THEME_PARTS <<< "$THEME_STYLE"
-    THEME_DIR="$WAYBAR_DIR/themes${THEME_PARTS[0]}"
-    THEME_CONFIG="$THEME_DIR/config"
-
-    if [[ -f "$THEME_CONFIG" ]]; then
-        # Check if niri/workspaces is already in modules-center
-        if grep -q '"niri/workspaces"' "$THEME_CONFIG"; then
-            ok "niri/workspaces already in theme config modules-center"
-        else
-            info "Active theme: ${THEME_PARTS[0]}"
-            info "Adding niri/workspaces to modules-center in theme config"
-            if confirm "Patch $THEME_CONFIG?"; then
-                backup_file "$THEME_CONFIG"
-                # Insert niri/workspaces after hyprland/workspaces in modules-center
-                sed -i '/"modules-center":/,/\]/ s/"hyprland\/workspaces"/"hyprland\/workspaces",\n        "niri\/workspaces"/' "$THEME_CONFIG"
-                ok "Theme config patched"
-            fi
-        fi
-
-        # Check for / create config-niri
-        NIRI_THEME_CONFIG="$THEME_DIR/config-niri"
-        if [[ -f "$NIRI_THEME_CONFIG" ]]; then
-            ok "config-niri already exists for active theme"
-        else
-            info "Creating config-niri (waybar config with niri/workspaces in center)"
-            if confirm "Create $NIRI_THEME_CONFIG?"; then
-                sed 's/"hyprland\/workspaces"/"niri\/workspaces"/' "$THEME_CONFIG" > "$NIRI_THEME_CONFIG"
-                ok "config-niri created"
-            fi
-        fi
-    else
-        warn "Theme config not found: $THEME_CONFIG"
-    fi
-else
-    warn "ML4W waybar theme setting not found, skipping theme patching"
-fi
-
-# 5c. Patch launch.sh for compositor check
-LAUNCH_FILE="$WAYBAR_DIR/launch.sh"
-if [[ -f "$LAUNCH_FILE" ]]; then
-    if grep -q 'XDG_CURRENT_DESKTOP.*niri' "$LAUNCH_FILE"; then
-        ok "launch.sh already has compositor-aware logic"
-    else
-        info "Patching launch.sh to handle niri compositor"
-        if confirm "Patch $LAUNCH_FILE?"; then
-            backup_file "$LAUNCH_FILE"
-            cp "$SCRIPT_DIR/dotfiles/waybar/launch.sh" "$LAUNCH_FILE"
-            ok "launch.sh patched"
-        fi
-    fi
-else
-    warn "launch.sh not found at $LAUNCH_FILE"
-fi
+    cp "$script" "$dest"
+    chmod +x "$dest"
+done
+ok "Scripts installed to $SCRIPTS_DIR"
 
 # ─────────────────────────────────────────────
-# Step 6: Validate
+# Step 6: Install waybar config
 # ─────────────────────────────────────────────
 
 echo
-info "Step 6: Validate niri config"
+info "Step 6: Install standalone waybar config"
+
+mkdir -p "$WAYBAR_DIR"
+
+for waybar_file in config modules.json quicklinks.json style.css launch.sh; do
+    src="$SCRIPT_DIR/config/waybar/$waybar_file"
+    dest="$WAYBAR_DIR/$waybar_file"
+    if [[ -f "$src" ]]; then
+        if [[ -f "$dest" ]]; then
+            backup_file "$dest"
+        fi
+        cp "$src" "$dest"
+        [[ "$waybar_file" == "launch.sh" ]] && chmod +x "$dest"
+    fi
+done
+ok "Waybar config installed to $WAYBAR_DIR"
+
+# ─────────────────────────────────────────────
+# Step 7: Install wlogout layout
+# ─────────────────────────────────────────────
+
+echo
+info "Step 7: Install wlogout layout"
+
+mkdir -p "$WLOGOUT_DIR"
+
+if [[ -f "$WLOGOUT_DIR/layout" ]]; then
+    backup_file "$WLOGOUT_DIR/layout"
+fi
+cp "$SCRIPT_DIR/config/wlogout/layout" "$WLOGOUT_DIR/layout"
+ok "wlogout layout installed to $WLOGOUT_DIR/layout"
+
+# ─────────────────────────────────────────────
+# Step 8: Validate
+# ─────────────────────────────────────────────
+
+echo
+info "Step 8: Validate niri config"
 
 if command -v niri &>/dev/null; then
     if niri validate 2>&1; then
@@ -315,14 +360,15 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo
 info "What was set up:"
 echo "  - Niri config:    $NIRI_CONFIG_DIR/config.kdl"
+echo "  - Niri scripts:   $NIRI_CONFIG_DIR/scripts/"
 echo "  - Swaylock:       $SWAYLOCK_CONFIG_DIR/config"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:    /usr/share/wayland-sessions/niri.desktop"
-echo "  - Waybar:         Patched for dual-compositor support"
+echo "  - Waybar:         $WAYBAR_DIR/"
+echo "  - wlogout:        $WLOGOUT_DIR/layout"
 echo
 info "Next steps:"
-echo "  1. Edit $NIRI_CONFIG_DIR/config.kdl output section for your monitors"
-echo "  2. Log out and select 'Niri' from the SDDM session picker"
-echo "  3. Switch back to Hyprland anytime — waybar works on both"
+echo "  1. Log out and select 'Niri' from the SDDM session picker"
+echo "  2. To customize monitor settings later, edit the output section in:"
+echo "     $NIRI_CONFIG_DIR/config.kdl"
 echo
-info "To uninstall, see README.md or run with --uninstall (if available)"

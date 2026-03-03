@@ -1,7 +1,0 @@
-{
-  "niri/workspaces": {
-    "on-click": "activate",
-    "all-outputs": true,
-    "format": "{index}"
-  }
-}

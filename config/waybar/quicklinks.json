@@ -1,0 +1,19 @@
+{
+  "group/quicklinks": {
+    "orientation": "horizontal",
+    "modules": [
+      "custom/browser",
+      "custom/filemanager"
+    ]
+  },
+  "custom/browser": {
+    "format": "",
+    "on-click": "zen-browser",
+    "tooltip-format": "Open browser"
+  },
+  "custom/filemanager": {
+    "format": "",
+    "on-click": "nautilus --new-window",
+    "tooltip-format": "Open file manager"
+  }
+}

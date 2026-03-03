@@ -1,12 +1,11 @@
-# Niri + Hyprland Dual-Compositor Setup
+# Niri Standalone Configuration
 
-Run [niri](https://github.com/YaLTeR/niri) alongside [Hyprland](https://hyprland.org/) with [ML4W dotfiles](https://github.com/mylinuxforwork/dotfiles), sharing waybar, rofi, swaync, swww, cliphist, and kitty between both compositors.
+Standalone [niri](https://github.com/YaLTeR/niri) scrollable-tiling Wayland compositor configuration for Arch Linux.
 
 ## Prerequisites
 
 - Arch Linux or derivative (CachyOS, EndeavourOS, etc.)
 - SDDM display manager
-- Hyprland + ML4W dotfiles installed and working
 
 ## Quick Install
 
@@ -16,7 +15,7 @@ cd ~/Projects/niri
 ./install.sh
 ```
 
-The installer is interactive — it checks prerequisites, installs packages, copies configs, and patches waybar. Every step asks for confirmation and creates backups before modifying files.
+The installer is interactive — it installs packages, copies configs/scripts, sets up waybar and wlogout. Every step asks for confirmation and creates backups before modifying files.
 
 ## Manual Install
 
@@ -29,19 +28,33 @@ sudo pacman -S --needed niri swayidle swaylock xwayland-satellite xdg-desktop-po
 | Package | Purpose |
 |---------|---------|
 | `niri` | Scrollable-tiling Wayland compositor |
-| `swayidle` | Idle manager (replaces hypridle) |
-| `swaylock` | Lock screen (replaces hyprlock) |
+| `swayidle` | Idle manager |
+| `swaylock` | Lock screen |
 | `xwayland-satellite` | X11 app compatibility for niri |
-| `xdg-desktop-portal-gnome` | Screen sharing, file dialogs (niri uses GNOME portal) |
+| `xdg-desktop-portal-gnome` | Screen sharing, file dialogs |
 
 ### 2. Install configs
 
 ```bash
+# Niri config
 mkdir -p ~/.config/niri
 cp config/niri/config.kdl ~/.config/niri/config.kdl
 
+# Swaylock config
 mkdir -p ~/.config/swaylock
 cp config/swaylock/config ~/.config/swaylock/config
+
+# Scripts
+cp -r scripts/ ~/.config/niri/scripts/
+chmod +x ~/.config/niri/scripts/*.sh
+
+# Waybar
+cp config/waybar/* ~/.config/waybar/
+chmod +x ~/.config/waybar/launch.sh
+
+# wlogout
+mkdir -p ~/.config/wlogout
+cp config/wlogout/layout ~/.config/wlogout/layout
 ```
 
 Edit the `output` section at the top of `config.kdl` for your monitors.
@@ -58,62 +71,37 @@ sudo cp sessions/niri.desktop /usr/share/wayland-sessions/niri.desktop
 
 Update the `Exec=` path in `niri.desktop` if your home directory differs.
 
-### 4. Patch waybar
-
-Three changes make waybar work on both compositors:
-
-**a) Add niri/workspaces module to `~/.config/waybar/modules.json`:**
-
-Add the snippet from `config/waybar/modules-niri.json` alongside the existing `hyprland/workspaces` block. Waybar only renders modules for the active compositor.
-
-**b) Add niri/workspaces to your active waybar theme config:**
-
-In your theme's `config` file (e.g., `~/.config/waybar/themes/ml4w-glass-center/config`), add `"niri/workspaces"` to `modules-center`:
-
-```json
-"modules-center": ["hyprland/workspaces", "niri/workspaces", "custom/empty"]
-```
-
-Or create a separate `config-niri` that replaces `hyprland/workspaces` with `niri/workspaces` — the patched `launch.sh` will use it automatically.
-
-**c) Patch `~/.config/waybar/launch.sh`:**
-
-Wrap the Hyprland-specific `hyprctl` line in a compositor check so waybar launches cleanly on niri. See `dotfiles/waybar/launch.sh` for the patched version.
-
-### 5. Validate
+### 4. Validate
 
 ```bash
 niri validate
 ```
 
-## Shared vs Niri-Specific
+## Components
 
-| Component | Shared | Niri-Specific |
-|-----------|--------|---------------|
-| waybar | Shared (patched for portability) | `config-niri` theme variant |
-| rofi | Shared | — |
-| swaync | Shared | — |
-| swww | Shared | — |
-| cliphist | Shared | — |
-| kitty | Shared | — |
-| wlogout | Shared | — |
-| Idle management | — | swayidle (replaces hypridle) |
-| Lock screen | — | swaylock (replaces hyprlock) |
-| X11 compat | — | xwayland-satellite |
-| Config | — | `~/.config/niri/config.kdl` |
-| Session | — | `start-niri.sh` + `niri.desktop` |
+| Component | Tool |
+|-----------|------|
+| Compositor | niri |
+| Bar | waybar |
+| App launcher | rofi |
+| Notifications | swaync |
+| Wallpaper | swww + waypaper |
+| Clipboard | cliphist |
+| Terminal | kitty |
+| Power menu | wlogout |
+| Idle management | swayidle |
+| Lock screen | swaylock |
+| X11 compat | xwayland-satellite |
 
 ## Keybindings
-
-All keybindings match Hyprland muscle memory where possible.
 
 ### Core
 
 | Binding | Action |
 |---------|--------|
 | `Super+Return` | Terminal (kitty) |
-| `Super+B` | Browser |
-| `Super+E` | File manager |
+| `Super+B` | Browser (zen-browser) |
+| `Super+E` | File manager (nautilus) |
 | `Super+Ctrl+Return` | App launcher (rofi) |
 | `Super+Q` | Close window |
 | `Super+F` | Fullscreen |
@@ -158,14 +146,6 @@ All keybindings match Hyprland muscle memory where possible.
 | `Super+[` / `Super+]` | Consume/expel directional |
 | `Super+Shift+V` | Switch focus floating/tiling |
 
-### Workspaces
-
-| Binding | Action |
-|---------|--------|
-| `Super+Ctrl+Page_Down/Up` | Move column to workspace down/up |
-| `Super+Shift+Page_Down/Up` | Reorder workspace down/up |
-| `Super+Scroll` | Scroll through workspaces |
-
 ### Utilities
 
 | Binding | Action |
@@ -173,13 +153,10 @@ All keybindings match Hyprland muscle memory where possible.
 | `Print` | Screenshot (select region) |
 | `Super+Print` | Screenshot full screen |
 | `Super+Shift+Print` | Screenshot window |
-| `Super+Alt+F` | Screenshot screen (instant) |
-| `Super+Alt+S` | Screenshot (instant) |
 | `Super+Shift+B` | Reload waybar |
 | `Super+Ctrl+B` | Toggle waybar |
 | `Super+Shift+W` | Random wallpaper |
 | `Super+Ctrl+W` | Wallpaper picker |
-| `Super+Ctrl+E` | Emoji picker |
 | `Super+Ctrl+C` / `XF86Calculator` | Calculator |
 | `Super+Escape` | Toggle keyboard shortcuts inhibit |
 | `Super+Shift+P` | Power off monitors |
@@ -207,33 +184,35 @@ Edit this for your setup. Run `niri msg outputs` (while niri is running) to list
 ## Repo Structure
 
 ```
-├── README.md                  # This file
-├── install.sh                 # Interactive installer
+├── README.md
+├── install.sh
 ├── config/
 │   ├── niri/
-│   │   └── config.kdl         # Niri compositor config
+│   │   └── config.kdl
 │   ├── swaylock/
-│   │   └── config             # OLED-friendly lock screen config
-│   └── waybar/
-│       └── modules-niri.json  # niri/workspaces module snippet
-├── sessions/
-│   ├── niri.desktop           # SDDM session entry
-│   └── start-niri.sh          # Session startup wrapper
-└── dotfiles/
-    └── waybar/                # Reference copies of patched waybar files
-        ├── modules.json
-        ├── launch.sh
-        └── themes/ml4w-glass-center/
-            ├── config
-            └── config-niri
+│   │   └── config
+│   ├── waybar/
+│   │   ├── config
+│   │   ├── modules.json
+│   │   ├── quicklinks.json
+│   │   ├── style.css
+│   │   └── launch.sh
+│   └── wlogout/
+│       └── layout
+├── scripts/
+│   ├── power.sh
+│   ├── cliphist.sh
+│   ├── toggle-waybar.sh
+│   └── waypaper.sh
+└── sessions/
+    ├── niri.desktop
+    └── start-niri.sh
 ```
 
 ## Uninstall
 
-To fully reverse the installation:
-
 ```bash
-# Remove niri and swaylock configs
+# Remove configs
 rm -rf ~/.config/niri
 rm -rf ~/.config/swaylock
 
@@ -241,13 +220,9 @@ rm -rf ~/.config/swaylock
 rm ~/.local/bin/start-niri.sh
 sudo rm /usr/share/wayland-sessions/niri.desktop
 
-# Restore waybar backups (if created by installer)
-# Check for .bak files in ~/.config/waybar/
-ls ~/.config/waybar/*.bak* ~/.config/waybar/themes/ml4w-glass-center/*.bak* 2>/dev/null
+# Restore waybar/wlogout backups (check for .bak files)
+ls ~/.config/waybar/*.bak* ~/.config/wlogout/*.bak* 2>/dev/null
 
-# Remove niri/workspaces from modules.json and theme config
-# (or restore from .bak files)
-
-# Uninstall packages (optional — only if nothing else uses them)
+# Uninstall packages (optional)
 sudo pacman -Rns niri swayidle swaylock xwayland-satellite xdg-desktop-portal-gnome
 ```
