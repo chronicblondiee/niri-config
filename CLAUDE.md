@@ -8,25 +8,18 @@ Standalone niri compositor configuration for Arch Linux. The installer (`install
 
 - `install.sh` — Main installer script (bash, interactive)
 - `config/niri/config.kdl` — Niri compositor config (KDL format)
-- `config/swaylock/config` — OLED-friendly swaylock config (Catppuccin dark)
-- `config/waybar/config` — Waybar bar layout (niri/workspaces in center)
-- `config/waybar/modules.json` — All waybar module definitions (standalone, no ML4W deps)
-- `config/waybar/quicklinks.json` — Quick-launch buttons (browser, file manager)
-- `config/waybar/style.css` — Waybar theme (glass style with inlined colors)
-- `config/waybar/launch.sh` — Waybar launcher (kill + restart, respects disabled state)
 - `config/wlogout/layout` — Power menu layout (lock, logout, suspend, reboot, shutdown)
-- `scripts/power.sh` — Power actions using swaylock + niri msg + systemctl
+- `scripts/power.sh` — Power actions using noctalia lock + niri msg + systemctl
 - `scripts/cliphist.sh` — Clipboard manager (cliphist + rofi)
-- `scripts/toggle-waybar.sh` — Toggle waybar visibility
-- `scripts/waypaper.sh` — Wallpaper selector wrapper
 - `sessions/start-niri.sh` — Session startup wrapper called by SDDM
 - `sessions/niri.desktop` — SDDM wayland session entry
 
 ## Architecture
 
 - Fully standalone: no dependency on ML4W or Hyprland
-- Shared tools: rofi, swaync, swww, cliphist, kitty, wlogout, waypaper
-- Niri-specific: swayidle (idle), swaylock (lock), xwayland-satellite (X11 compat)
+- Desktop shell: noctalia-shell (bar, notifications, wallpaper, lock screen)
+- Shared tools: rofi, cliphist, kitty, wlogout
+- Niri-specific: xwayland-satellite (X11 compat)
 - All scripts live in `scripts/` and are installed to `~/.config/niri/scripts/`
 
 ## Conventions

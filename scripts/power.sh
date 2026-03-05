@@ -3,7 +3,7 @@
 
 case "$1" in
     lock)
-        swaylock -f
+        qs -c noctalia-shell ipc call lockscreen lock
         ;;
     exit)
         niri msg action quit

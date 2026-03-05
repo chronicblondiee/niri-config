@@ -6,6 +6,7 @@ Standalone [niri](https://github.com/YaLTeR/niri) scrollable-tiling Wayland comp
 
 - Arch Linux or derivative (CachyOS, EndeavourOS, etc.)
 - SDDM display manager
+- An AUR helper (`paru` or `yay`) for noctalia-shell
 
 ## Quick Install
 
@@ -15,21 +16,24 @@ cd ~/Projects/niri
 ./install.sh
 ```
 
-The installer is interactive — it installs packages, copies configs/scripts, sets up waybar and wlogout. Every step asks for confirmation and creates backups before modifying files.
+The installer is interactive — it installs packages, copies configs/scripts, and sets up wlogout. Every step asks for confirmation and creates backups before modifying files.
 
 ## Manual Install
 
 ### 1. Install packages
 
 ```bash
-sudo pacman -S --needed niri swayidle swaylock xwayland-satellite xdg-desktop-portal-gnome
+# Official repos
+sudo pacman -S --needed niri xwayland-satellite xdg-desktop-portal-gnome
+
+# AUR (noctalia-shell provides bar, notifications, wallpaper, lock screen)
+paru -S noctalia-shell
 ```
 
 | Package | Purpose |
 |---------|---------|
 | `niri` | Scrollable-tiling Wayland compositor |
-| `swayidle` | Idle manager |
-| `swaylock` | Lock screen |
+| `noctalia-shell` | Desktop shell (bar, notifications, wallpaper, lock screen) |
 | `xwayland-satellite` | X11 app compatibility for niri |
 | `xdg-desktop-portal-gnome` | Screen sharing, file dialogs |
 
@@ -40,17 +44,9 @@ sudo pacman -S --needed niri swayidle swaylock xwayland-satellite xdg-desktop-po
 mkdir -p ~/.config/niri
 cp config/niri/config.kdl ~/.config/niri/config.kdl
 
-# Swaylock config
-mkdir -p ~/.config/swaylock
-cp config/swaylock/config ~/.config/swaylock/config
-
 # Scripts
 cp -r scripts/ ~/.config/niri/scripts/
 chmod +x ~/.config/niri/scripts/*.sh
-
-# Waybar
-cp config/waybar/* ~/.config/waybar/
-chmod +x ~/.config/waybar/launch.sh
 
 # wlogout
 mkdir -p ~/.config/wlogout
@@ -82,15 +78,14 @@ niri validate
 | Component | Tool |
 |-----------|------|
 | Compositor | niri |
-| Bar | waybar |
+| Bar | noctalia-shell |
 | App launcher | rofi |
-| Notifications | swaync |
-| Wallpaper | swww + waypaper |
+| Notifications | noctalia-shell |
+| Wallpaper | noctalia-shell |
 | Clipboard | cliphist |
 | Terminal | kitty |
 | Power menu | wlogout |
-| Idle management | swayidle |
-| Lock screen | swaylock |
+| Lock screen | noctalia-shell |
 | X11 compat | xwayland-satellite |
 
 ## Keybindings
@@ -112,6 +107,7 @@ niri validate
 | `Super+Shift+E` | Quit niri |
 | `Super+Slash` | Show hotkey overlay |
 | `Super+O` | Toggle overview |
+| `Super+Comma` | Noctalia settings panel |
 
 ### Navigation
 
@@ -141,7 +137,6 @@ niri validate
 | `Super+M` | Maximize column |
 | `Super+Shift+F` | Expand column to available width |
 | `Super+W` | Toggle tabbed column display |
-| `Super+Comma` | Consume window into column |
 | `Super+Period` | Expel window from column |
 | `Super+[` / `Super+]` | Consume/expel directional |
 | `Super+Shift+V` | Switch focus floating/tiling |
@@ -153,10 +148,6 @@ niri validate
 | `Print` | Screenshot (select region) |
 | `Super+Print` | Screenshot full screen |
 | `Super+Shift+Print` | Screenshot window |
-| `Super+Shift+B` | Reload waybar |
-| `Super+Ctrl+B` | Toggle waybar |
-| `Super+Shift+W` | Random wallpaper |
-| `Super+Ctrl+W` | Wallpaper picker |
 | `Super+Ctrl+C` / `XF86Calculator` | Calculator |
 | `Super+Escape` | Toggle keyboard shortcuts inhibit |
 | `Super+Shift+P` | Power off monitors |
@@ -239,21 +230,11 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
 ├── config/
 │   ├── niri/
 │   │   └── config.kdl
-│   ├── swaylock/
-│   │   └── config
-│   ├── waybar/
-│   │   ├── config
-│   │   ├── modules.json
-│   │   ├── quicklinks.json
-│   │   ├── style.css
-│   │   └── launch.sh
 │   └── wlogout/
 │       └── layout
 ├── scripts/
 │   ├── power.sh
-│   ├── cliphist.sh
-│   ├── toggle-waybar.sh
-│   └── waypaper.sh
+│   └── cliphist.sh
 └── sessions/
     ├── niri.desktop
     └── start-niri.sh
@@ -264,15 +245,15 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
 ```bash
 # Remove configs
 rm -rf ~/.config/niri
-rm -rf ~/.config/swaylock
 
 # Remove session files
 rm ~/.local/bin/start-niri.sh
 sudo rm /usr/share/wayland-sessions/niri.desktop
 
-# Restore waybar/wlogout backups (check for .bak files)
-ls ~/.config/waybar/*.bak* ~/.config/wlogout/*.bak* 2>/dev/null
+# Restore wlogout backups (check for .bak files)
+ls ~/.config/wlogout/*.bak* 2>/dev/null
 
 # Uninstall packages (optional)
-sudo pacman -Rns niri swayidle swaylock xwayland-satellite xdg-desktop-portal-gnome
+sudo pacman -Rns niri xwayland-satellite xdg-desktop-portal-gnome
+paru -Rns noctalia-shell
 ```

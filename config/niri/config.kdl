@@ -50,6 +50,8 @@ layout {
     border {
         off
     }
+
+    background-color "transparent"
 }
 
 // ----- Misc -----
@@ -58,16 +60,17 @@ screenshot-path "~/Pictures/Screenshots/screenshot-%Y-%m-%d-%H-%M-%S.png"
 
 // ----- Spawn at Startup -----
 spawn-at-startup "xwayland-satellite"
-spawn-at-startup "~/.config/waybar/launch.sh"
-spawn-at-startup "swaync"
-spawn-at-startup "swww-daemon"
-spawn-at-startup "sh" "-c" "sleep 1 && swww img \"$(cat ~/.cache/swww/eDP-1 2>/dev/null || cat ~/.cache/swww/DP-1 2>/dev/null || echo '')\""
+spawn-at-startup "qs" "-c" "noctalia-shell"
 spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
 spawn-at-startup "sh" "-c" "systemctl --user start hyprpolkitagent"
-spawn-at-startup "swayidle" "-w" "timeout" "300" "swaylock -f" "timeout" "600" "niri msg action power-off-monitors" "resume" "niri msg action power-on-monitors" "before-sleep" "swaylock -f"
 spawn-at-startup "sh" "-c" "ssh-add < /dev/null 2>/dev/null"
 
 // ----- Window Rules -----
+window-rule {
+    geometry-corner-radius 20
+    clip-to-geometry true
+}
+
 window-rule {
     match app-id=r#"^gamescope$"#
     match app-id=r#"^steam_app_"#
@@ -92,6 +95,22 @@ window-rule {
 window-rule {
     match app-id="blueman-manager"
     open-floating true
+}
+
+// ----- Noctalia Layer Rules -----
+layer-rule {
+    match namespace="^noctalia-wallpaper*"
+    place-within-backdrop true
+}
+
+debug {
+    honor-xdg-activation-with-invalid-serial
+}
+
+overview {
+    workspace-shadow {
+        off
+    }
 }
 
 // ----- Keybindings -----
@@ -152,8 +171,10 @@ binds {
     Mod+R { switch-preset-column-width; }
 
     // Consume / expel window (niri-specific column management)
-    Mod+Comma { consume-window-into-column; }
     Mod+Period { expel-window-from-column; }
+
+    // Noctalia settings panel
+    Mod+Comma { spawn "sh" "-c" "qs -c noctalia-shell ipc call settings toggle"; }
 
     // Workspaces
     Mod+1 { focus-workspace 1; }
@@ -188,11 +209,8 @@ binds {
     Mod+Print { screenshot-screen; }
     Mod+Shift+Print { screenshot-window; }
 
-    // Waybar reload
-    Mod+Shift+B { spawn "sh" "-c" "~/.config/waybar/launch.sh"; }
-
     // Lock screen
-    Super+Alt+L { spawn "swaylock"; }
+    Super+Alt+L { spawn "sh" "-c" "qs -c noctalia-shell ipc call lockscreen lock"; }
 
     // Power menu
     Mod+Ctrl+Q { spawn "wlogout"; }
@@ -296,13 +314,6 @@ binds {
     // Instant screenshots
     Mod+Alt+F { screenshot-screen; }
     Mod+Alt+S { screenshot; }
-
-    // Wallpaper
-    Mod+Shift+W { spawn "sh" "-c" "~/.config/niri/scripts/waypaper.sh --random"; }
-    Mod+Ctrl+W { spawn "sh" "-c" "~/.config/niri/scripts/waypaper.sh"; }
-
-    // Toggle waybar
-    Mod+Ctrl+B { spawn "sh" "-c" "~/.config/niri/scripts/toggle-waybar.sh"; }
 
     // Workspace 10
     Mod+0 { focus-workspace 10; }

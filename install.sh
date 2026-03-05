@@ -7,9 +7,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WAYBAR_DIR="$HOME/.config/waybar"
 NIRI_CONFIG_DIR="$HOME/.config/niri"
-SWAYLOCK_CONFIG_DIR="$HOME/.config/swaylock"
 WLOGOUT_DIR="$HOME/.config/wlogout"
 
 # Colors
@@ -71,24 +69,57 @@ ok "Arch-based system detected"
 echo
 info "Step 2: Install packages"
 
-PACKAGES=(niri swayidle swaylock xwayland-satellite xdg-desktop-portal-gnome)
-MISSING=()
+PACMAN_PACKAGES=(niri xwayland-satellite xdg-desktop-portal-gnome)
+AUR_PACKAGES=(noctalia-shell)
+MISSING_PACMAN=()
+MISSING_AUR=()
 
-for pkg in "${PACKAGES[@]}"; do
+for pkg in "${PACMAN_PACKAGES[@]}"; do
     if ! pacman -Qi "$pkg" &>/dev/null; then
-        MISSING+=("$pkg")
+        MISSING_PACMAN+=("$pkg")
     fi
 done
 
-if [[ ${#MISSING[@]} -eq 0 ]]; then
-    ok "All packages already installed: ${PACKAGES[*]}"
+for pkg in "${AUR_PACKAGES[@]}"; do
+    if ! pacman -Qi "$pkg" &>/dev/null; then
+        MISSING_AUR+=("$pkg")
+    fi
+done
+
+if [[ ${#MISSING_PACMAN[@]} -eq 0 ]]; then
+    ok "All official packages already installed: ${PACMAN_PACKAGES[*]}"
 else
-    info "Packages to install: ${MISSING[*]}"
+    info "Official packages to install: ${MISSING_PACMAN[*]}"
     if confirm "Install with pacman?"; then
-        sudo pacman -S --needed "${MISSING[@]}"
-        ok "Packages installed"
+        sudo pacman -S --needed "${MISSING_PACMAN[@]}"
+        ok "Official packages installed"
     else
-        warn "Skipping package installation"
+        warn "Skipping official package installation"
+    fi
+fi
+
+if [[ ${#MISSING_AUR[@]} -eq 0 ]]; then
+    ok "All AUR packages already installed: ${AUR_PACKAGES[*]}"
+else
+    # Find an AUR helper
+    AUR_HELPER=""
+    for helper in paru yay; do
+        if command -v "$helper" &>/dev/null; then
+            AUR_HELPER="$helper"
+            break
+        fi
+    done
+
+    if [[ -z "$AUR_HELPER" ]]; then
+        err "No AUR helper found (paru or yay). Install one first, then install: ${MISSING_AUR[*]}"
+    else
+        info "AUR packages to install (via $AUR_HELPER): ${MISSING_AUR[*]}"
+        if confirm "Install with $AUR_HELPER?"; then
+            "$AUR_HELPER" -S --needed "${MISSING_AUR[@]}"
+            ok "AUR packages installed"
+        else
+            warn "Skipping AUR package installation"
+        fi
     fi
 fi
 
@@ -113,29 +144,6 @@ if [[ -f "$NIRI_CONFIG_DIR/config.kdl" ]]; then
 else
     cp "$SCRIPT_DIR/config/niri/config.kdl" "$NIRI_CONFIG_DIR/config.kdl"
     ok "Niri config installed to $NIRI_CONFIG_DIR/config.kdl"
-fi
-
-# ─────────────────────────────────────────────
-# Step 3a: Copy swaylock config
-# ─────────────────────────────────────────────
-
-echo
-info "Step 3a: Install swaylock config"
-
-mkdir -p "$SWAYLOCK_CONFIG_DIR"
-
-if [[ -f "$SWAYLOCK_CONFIG_DIR/config" ]]; then
-    ok "Swaylock config already exists at $SWAYLOCK_CONFIG_DIR/config"
-    if confirm "Overwrite with repo version?" "n"; then
-        backup_file "$SWAYLOCK_CONFIG_DIR/config"
-        cp "$SCRIPT_DIR/config/swaylock/config" "$SWAYLOCK_CONFIG_DIR/config"
-        ok "Swaylock config updated"
-    else
-        warn "Keeping existing swaylock config"
-    fi
-else
-    cp "$SCRIPT_DIR/config/swaylock/config" "$SWAYLOCK_CONFIG_DIR/config"
-    ok "Swaylock config installed to $SWAYLOCK_CONFIG_DIR/config"
 fi
 
 # ─────────────────────────────────────────────
@@ -205,33 +213,11 @@ done
 ok "Scripts installed to $SCRIPTS_DIR"
 
 # ─────────────────────────────────────────────
-# Step 6: Install waybar config
+# Step 6: Install wlogout layout
 # ─────────────────────────────────────────────
 
 echo
-info "Step 6: Install standalone waybar config"
-
-mkdir -p "$WAYBAR_DIR"
-
-for waybar_file in config modules.json quicklinks.json style.css launch.sh; do
-    src="$SCRIPT_DIR/config/waybar/$waybar_file"
-    dest="$WAYBAR_DIR/$waybar_file"
-    if [[ -f "$src" ]]; then
-        if [[ -f "$dest" ]]; then
-            backup_file "$dest"
-        fi
-        cp "$src" "$dest"
-        [[ "$waybar_file" == "launch.sh" ]] && chmod +x "$dest"
-    fi
-done
-ok "Waybar config installed to $WAYBAR_DIR"
-
-# ─────────────────────────────────────────────
-# Step 7: Install wlogout layout
-# ─────────────────────────────────────────────
-
-echo
-info "Step 7: Install wlogout layout"
+info "Step 6: Install wlogout layout"
 
 mkdir -p "$WLOGOUT_DIR"
 
@@ -242,11 +228,11 @@ cp "$SCRIPT_DIR/config/wlogout/layout" "$WLOGOUT_DIR/layout"
 ok "wlogout layout installed to $WLOGOUT_DIR/layout"
 
 # ─────────────────────────────────────────────
-# Step 8: Validate
+# Step 7: Validate
 # ─────────────────────────────────────────────
 
 echo
-info "Step 8: Validate niri config"
+info "Step 7: Validate niri config"
 
 if command -v niri &>/dev/null; then
     if niri validate 2>&1; then
@@ -270,11 +256,10 @@ echo
 info "What was set up:"
 echo "  - Niri config:    $NIRI_CONFIG_DIR/config.kdl"
 echo "  - Niri scripts:   $NIRI_CONFIG_DIR/scripts/"
-echo "  - Swaylock:       $SWAYLOCK_CONFIG_DIR/config"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:    /usr/share/wayland-sessions/niri.desktop"
-echo "  - Waybar:         $WAYBAR_DIR/"
 echo "  - wlogout:        $WLOGOUT_DIR/layout"
+echo "  - Desktop shell:  noctalia-shell (bar, notifications, wallpaper, lock screen)"
 echo
 info "Next steps:"
 echo "  1. Log out and select 'Niri' from the SDDM session picker"
