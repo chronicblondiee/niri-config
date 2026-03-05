@@ -16,7 +16,7 @@ cd ~/Projects/niri
 ./install.sh
 ```
 
-The installer is interactive — it installs packages, copies configs/scripts, and sets up wlogout. Every step asks for confirmation and creates backups before modifying files.
+The installer is interactive — it installs packages, copies configs and scripts. Every step asks for confirmation and creates backups before modifying files.
 
 ## Manual Install
 
@@ -44,13 +44,15 @@ paru -S noctalia-shell
 mkdir -p ~/.config/niri
 cp config/niri/config.kdl ~/.config/niri/config.kdl
 
-# Scripts
-cp -r scripts/ ~/.config/niri/scripts/
-chmod +x ~/.config/niri/scripts/*.sh
+# Noctalia shell config (replace __HOME__ with your home directory)
+mkdir -p ~/.config/noctalia
+sed "s|__HOME__|$HOME|g" config/noctalia/settings.json > ~/.config/noctalia/settings.json
 
-# wlogout
-mkdir -p ~/.config/wlogout
-cp config/wlogout/layout ~/.config/wlogout/layout
+# Wallpaper directory
+mkdir -p ~/Pictures/Wallpapers
+
+# Disable swaync if installed (conflicts with noctalia notifications)
+systemctl --user mask swaync 2>/dev/null || true
 ```
 
 Edit the `output` section at the top of `config.kdl` for your monitors.
@@ -79,12 +81,12 @@ niri validate
 |-----------|------|
 | Compositor | niri |
 | Bar | noctalia-shell |
-| App launcher | rofi |
+| App launcher | noctalia-shell |
 | Notifications | noctalia-shell |
 | Wallpaper | noctalia-shell |
-| Clipboard | cliphist |
+| Clipboard | noctalia-shell (cliphist backend) |
 | Terminal | kitty |
-| Power menu | wlogout |
+| Power/session menu | noctalia-shell |
 | Lock screen | noctalia-shell |
 | X11 compat | xwayland-satellite |
 
@@ -97,17 +99,17 @@ niri validate
 | `Super+Return` | Terminal (kitty) |
 | `Super+B` | Browser (zen-browser) |
 | `Super+E` | File manager (nautilus) |
-| `Super+Ctrl+Return` | App launcher (rofi) |
+| `Super+Space` / `Super+Ctrl+Return` | App launcher |
+| `Super+Shift+Space` | Emoji picker |
 | `Super+Q` | Close window |
 | `Super+F` | Fullscreen |
 | `Super+T` | Toggle floating |
 | `Super+V` | Clipboard manager |
-| `Super+Ctrl+Q` | Power menu (wlogout) |
 | `Super+Alt+L` | Lock screen |
+| `Super+Ctrl+Q` | Session / power menu |
 | `Super+Shift+E` | Quit niri |
 | `Super+Slash` | Show hotkey overlay |
 | `Super+O` | Toggle overview |
-| `Super+Comma` | Noctalia settings panel |
 
 ### Navigation
 
@@ -141,6 +143,24 @@ niri validate
 | `Super+[` / `Super+]` | Consume/expel directional |
 | `Super+Shift+V` | Switch focus floating/tiling |
 
+### Noctalia Shell
+
+| Binding | Action |
+|---------|--------|
+| `Super+Comma` | Settings panel |
+| `Super+A` | Control center |
+| `Super+Ctrl+A` | Calendar |
+| `Super+N` | Notification history |
+| `Super+Shift+N` | Toggle Do Not Disturb |
+| `Super+Shift+B` | Toggle bar |
+| `Super+D` | Toggle dock |
+| `Super+Shift+W` | Random wallpaper |
+| `Super+Ctrl+W` | Wallpaper picker |
+| `Super+Ctrl+D` | Toggle dark mode |
+| `Super+Ctrl+N` | Toggle night light |
+| `Super+Shift+M` | Media panel |
+| Media keys | Volume, brightness, player controls (with OSD) |
+
 ### Utilities
 
 | Binding | Action |
@@ -151,7 +171,6 @@ niri validate
 | `Super+Ctrl+C` / `XF86Calculator` | Calculator |
 | `Super+Escape` | Toggle keyboard shortcuts inhibit |
 | `Super+Shift+P` | Power off monitors |
-| Media keys | Volume, brightness, player controls |
 
 ## Monitors
 
@@ -230,11 +249,8 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
 ├── config/
 │   ├── niri/
 │   │   └── config.kdl
-│   └── wlogout/
-│       └── layout
-├── scripts/
-│   ├── power.sh
-│   └── cliphist.sh
+│   └── noctalia/
+│       └── settings.json
 └── sessions/
     ├── niri.desktop
     └── start-niri.sh
@@ -249,9 +265,6 @@ rm -rf ~/.config/niri
 # Remove session files
 rm ~/.local/bin/start-niri.sh
 sudo rm /usr/share/wayland-sessions/niri.desktop
-
-# Restore wlogout backups (check for .bak files)
-ls ~/.config/wlogout/*.bak* 2>/dev/null
 
 # Uninstall packages (optional)
 sudo pacman -Rns niri xwayland-satellite xdg-desktop-portal-gnome

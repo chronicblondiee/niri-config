@@ -62,7 +62,7 @@ screenshot-path "~/Pictures/Screenshots/screenshot-%Y-%m-%d-%H-%M-%S.png"
 spawn-at-startup "xwayland-satellite"
 spawn-at-startup "qs" "-c" "noctalia-shell"
 spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
-spawn-at-startup "sh" "-c" "systemctl --user start hyprpolkitagent"
+spawn-at-startup "sh" "-c" "/usr/lib/polkit-kde-authentication-agent-1"
 spawn-at-startup "sh" "-c" "ssh-add < /dev/null 2>/dev/null"
 
 // ----- Window Rules -----
@@ -124,11 +124,13 @@ binds {
     // File manager
     Mod+E { spawn "nautilus" "--new-window"; }
 
-    // App launcher
-    Mod+Ctrl+Return { spawn "rofi" "-show" "drun"; }
+    // Noctalia launcher (apps, emoji, clipboard, windows)
+    Mod+Space { spawn "sh" "-c" "qs -c noctalia-shell ipc call launcher toggle"; }
+    Mod+Ctrl+Return { spawn "sh" "-c" "qs -c noctalia-shell ipc call launcher toggle"; }
+    Mod+Shift+Space { spawn "sh" "-c" "qs -c noctalia-shell ipc call launcher emoji"; }
 
-    // Clipboard manager
-    Mod+V { spawn "sh" "-c" "~/.config/niri/scripts/cliphist.sh"; }
+    // Clipboard manager (noctalia)
+    Mod+V { spawn "sh" "-c" "qs -c noctalia-shell ipc call launcher clipboard"; }
 
     // Close window
     Mod+Q { close-window; }
@@ -173,9 +175,6 @@ binds {
     // Consume / expel window (niri-specific column management)
     Mod+Period { expel-window-from-column; }
 
-    // Noctalia settings panel
-    Mod+Comma { spawn "sh" "-c" "qs -c noctalia-shell ipc call settings toggle"; }
-
     // Workspaces
     Mod+1 { focus-workspace 1; }
     Mod+2 { focus-workspace 2; }
@@ -209,11 +208,50 @@ binds {
     Mod+Print { screenshot-screen; }
     Mod+Shift+Print { screenshot-window; }
 
-    // Lock screen
-    Super+Alt+L { spawn "sh" "-c" "qs -c noctalia-shell ipc call lockscreen lock"; }
+    // ----- Noctalia Shell -----
 
-    // Power menu
-    Mod+Ctrl+Q { spawn "wlogout"; }
+    // Lock screen
+    Super+Alt+L { spawn "sh" "-c" "qs -c noctalia-shell ipc call lockScreen lock"; }
+
+    // Session / power menu (noctalia built-in)
+    Mod+Ctrl+Q { spawn "sh" "-c" "qs -c noctalia-shell ipc call sessionMenu toggle"; }
+
+    // Settings panel
+    Mod+Comma { spawn "sh" "-c" "qs -c noctalia-shell ipc call settings toggle"; }
+
+    // Control center
+    Mod+A { spawn "sh" "-c" "qs -c noctalia-shell ipc call controlCenter toggle"; }
+
+    // Notifications
+    Mod+N { spawn "sh" "-c" "qs -c noctalia-shell ipc call notifications toggleHistory"; }
+    Mod+Shift+N { spawn "sh" "-c" "qs -c noctalia-shell ipc call notifications toggleDND"; }
+
+    // Bar toggle
+    Mod+Shift+B { spawn "sh" "-c" "qs -c noctalia-shell ipc call bar toggle"; }
+
+    // Dock toggle
+    Mod+D { spawn "sh" "-c" "qs -c noctalia-shell ipc call dock toggle"; }
+
+    // Wallpaper
+    Mod+Shift+W { spawn "sh" "-c" "qs -c noctalia-shell ipc call wallpaper random"; }
+    Mod+Ctrl+W { spawn "sh" "-c" "qs -c noctalia-shell ipc call wallpaper toggle"; }
+
+    // Dark mode toggle
+    Mod+Ctrl+D { spawn "sh" "-c" "qs -c noctalia-shell ipc call darkMode toggle"; }
+
+    // Network panel
+    Mod+Ctrl+I { spawn "sh" "-c" "qs -c noctalia-shell ipc call network togglePanel"; }
+
+    // Night light toggle
+    Mod+Ctrl+N { spawn "sh" "-c" "qs -c noctalia-shell ipc call nightLight toggle"; }
+
+    // Calendar
+    Mod+Ctrl+A { spawn "sh" "-c" "qs -c noctalia-shell ipc call calendar toggle"; }
+
+    // Media panel
+    Mod+Shift+M { spawn "sh" "-c" "qs -c noctalia-shell ipc call media toggle"; }
+
+    // ----- End Noctalia Shell -----
 
     // Show important hotkeys
     Mod+Slash { show-hotkey-overlay; }
@@ -221,19 +259,19 @@ binds {
     // Quit niri
     Mod+Shift+E { quit; }
 
-    // Media keys
-    XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%+"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%-"; }
-    XF86AudioMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
-    XF86AudioMicMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+    // Media keys (routed through noctalia for OSD)
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "sh" "-c" "qs -c noctalia-shell ipc call volume increase"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "sh" "-c" "qs -c noctalia-shell ipc call volume decrease"; }
+    XF86AudioMute allow-when-locked=true { spawn "sh" "-c" "qs -c noctalia-shell ipc call volume muteOutput"; }
+    XF86AudioMicMute allow-when-locked=true { spawn "sh" "-c" "qs -c noctalia-shell ipc call volume muteInput"; }
 
-    XF86MonBrightnessUp { spawn "brightnessctl" "set" "+5%"; }
-    XF86MonBrightnessDown { spawn "brightnessctl" "set" "5%-"; }
+    XF86MonBrightnessUp { spawn "sh" "-c" "qs -c noctalia-shell ipc call brightness increase"; }
+    XF86MonBrightnessDown { spawn "sh" "-c" "qs -c noctalia-shell ipc call brightness decrease"; }
 
-    XF86AudioPlay { spawn "playerctl" "play-pause"; }
-    XF86AudioNext { spawn "playerctl" "next"; }
-    XF86AudioPrev { spawn "playerctl" "previous"; }
-    XF86AudioStop { spawn "playerctl" "stop"; }
+    XF86AudioPlay { spawn "sh" "-c" "qs -c noctalia-shell ipc call media playPause"; }
+    XF86AudioNext { spawn "sh" "-c" "qs -c noctalia-shell ipc call media next"; }
+    XF86AudioPrev { spawn "sh" "-c" "qs -c noctalia-shell ipc call media previous"; }
+    XF86AudioStop { spawn "sh" "-c" "qs -c noctalia-shell ipc call media stop"; }
 
     // Overview (niri's built-in workspace/window overview)
     Mod+O { toggle-overview; }

@@ -8,9 +8,6 @@ Standalone niri compositor configuration for Arch Linux. The installer (`install
 
 - `install.sh` — Main installer script (bash, interactive)
 - `config/niri/config.kdl` — Niri compositor config (KDL format)
-- `config/wlogout/layout` — Power menu layout (lock, logout, suspend, reboot, shutdown)
-- `scripts/power.sh` — Power actions using noctalia lock + niri msg + systemctl
-- `scripts/cliphist.sh` — Clipboard manager (cliphist + rofi)
 - `sessions/start-niri.sh` — Session startup wrapper called by SDDM
 - `sessions/niri.desktop` — SDDM wayland session entry
 
@@ -18,9 +15,8 @@ Standalone niri compositor configuration for Arch Linux. The installer (`install
 
 - Fully standalone: no dependency on ML4W or Hyprland
 - Desktop shell: noctalia-shell (bar, notifications, wallpaper, lock screen)
-- Shared tools: rofi, cliphist, kitty, wlogout
+- Shared tools: cliphist, kitty
 - Niri-specific: xwayland-satellite (X11 compat)
-- All scripts live in `scripts/` and are installed to `~/.config/niri/scripts/`
 
 ## Conventions
 

@@ -8,7 +8,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NIRI_CONFIG_DIR="$HOME/.config/niri"
-WLOGOUT_DIR="$HOME/.config/wlogout"
+NOCTALIA_CONFIG_DIR="$HOME/.config/noctalia"
+WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
 
 # Colors
 RED='\033[0;31m'
@@ -147,6 +148,73 @@ else
 fi
 
 # ─────────────────────────────────────────────
+# Step 3a: Install noctalia-shell config
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3a: Install noctalia-shell config"
+
+mkdir -p "$NOCTALIA_CONFIG_DIR"
+
+if [[ -f "$NOCTALIA_CONFIG_DIR/settings.json" ]]; then
+    ok "Noctalia config already exists at $NOCTALIA_CONFIG_DIR/settings.json"
+    if confirm "Overwrite with repo version?" "n"; then
+        backup_file "$NOCTALIA_CONFIG_DIR/settings.json"
+        sed "s|__HOME__|$HOME|g" "$SCRIPT_DIR/config/noctalia/settings.json" > "$NOCTALIA_CONFIG_DIR/settings.json"
+        ok "Noctalia config updated"
+    else
+        warn "Keeping existing noctalia config"
+    fi
+else
+    sed "s|__HOME__|$HOME|g" "$SCRIPT_DIR/config/noctalia/settings.json" > "$NOCTALIA_CONFIG_DIR/settings.json"
+    ok "Noctalia config installed to $NOCTALIA_CONFIG_DIR/settings.json"
+fi
+
+# ─────────────────────────────────────────────
+# Step 3b: Create wallpaper directory
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3b: Create wallpaper directory"
+
+if [[ -d "$WALLPAPER_DIR" ]]; then
+    ok "Wallpaper directory already exists: $WALLPAPER_DIR"
+else
+    mkdir -p "$WALLPAPER_DIR"
+    ok "Created $WALLPAPER_DIR"
+    info "Add wallpaper images to this directory for noctalia to use"
+fi
+
+# ─────────────────────────────────────────────
+# Step 3c: Disable conflicting services
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3c: Disable conflicting notification daemons"
+
+# swaync conflicts with noctalia's built-in notification server
+if systemctl --user is-active swaync &>/dev/null; then
+    info "swaync is running — it conflicts with noctalia's notification server"
+    if confirm "Stop and mask swaync?"; then
+        systemctl --user stop swaync
+        systemctl --user mask swaync
+        ok "swaync stopped and masked"
+    else
+        warn "swaync left running — noctalia notifications may not work"
+    fi
+elif systemctl --user is-enabled swaync &>/dev/null 2>&1; then
+    info "swaync is enabled but not running"
+    if confirm "Mask swaync to prevent it from starting?"; then
+        systemctl --user mask swaync
+        ok "swaync masked"
+    else
+        warn "swaync left enabled — it may conflict with noctalia notifications"
+    fi
+else
+    ok "No conflicting notification daemons found"
+fi
+
+# ─────────────────────────────────────────────
 # Step 4: Install session files
 # ─────────────────────────────────────────────
 
@@ -192,47 +260,11 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 5: Install scripts
-# ─────────────────────────────────────────────
-
-echo
-info "Step 5: Install niri scripts"
-
-SCRIPTS_DIR="$NIRI_CONFIG_DIR/scripts"
-mkdir -p "$SCRIPTS_DIR"
-
-for script in "$SCRIPT_DIR"/scripts/*.sh; do
-    script_name=$(basename "$script")
-    dest="$SCRIPTS_DIR/$script_name"
-    if [[ -f "$dest" ]]; then
-        backup_file "$dest"
-    fi
-    cp "$script" "$dest"
-    chmod +x "$dest"
-done
-ok "Scripts installed to $SCRIPTS_DIR"
-
-# ─────────────────────────────────────────────
-# Step 6: Install wlogout layout
-# ─────────────────────────────────────────────
-
-echo
-info "Step 6: Install wlogout layout"
-
-mkdir -p "$WLOGOUT_DIR"
-
-if [[ -f "$WLOGOUT_DIR/layout" ]]; then
-    backup_file "$WLOGOUT_DIR/layout"
-fi
-cp "$SCRIPT_DIR/config/wlogout/layout" "$WLOGOUT_DIR/layout"
-ok "wlogout layout installed to $WLOGOUT_DIR/layout"
-
-# ─────────────────────────────────────────────
 # Step 7: Validate
 # ─────────────────────────────────────────────
 
 echo
-info "Step 7: Validate niri config"
+info "Step 5: Validate niri config"
 
 if command -v niri &>/dev/null; then
     if niri validate 2>&1; then
@@ -255,14 +287,24 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo
 info "What was set up:"
 echo "  - Niri config:    $NIRI_CONFIG_DIR/config.kdl"
-echo "  - Niri scripts:   $NIRI_CONFIG_DIR/scripts/"
+echo "  - Noctalia shell: $NOCTALIA_CONFIG_DIR/settings.json"
+echo "  - Wallpapers:     $WALLPAPER_DIR/"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:    /usr/share/wayland-sessions/niri.desktop"
-echo "  - wlogout:        $WLOGOUT_DIR/layout"
-echo "  - Desktop shell:  noctalia-shell (bar, notifications, wallpaper, lock screen)"
+echo
+info "Noctalia-shell provides:"
+echo "  - Status bar (top, with workspaces, clock, tray, etc.)"
+echo "  - Notifications (top-right)"
+echo "  - Wallpaper manager (~/Pictures/Wallpapers/)"
+echo "  - Lock screen (idle: 5min lock, 10min screen off)"
+echo "  - OSD (volume, brightness)"
+echo "  - Control center (right-click bar)"
+echo "  - Settings panel (Super+Comma)"
 echo
 info "Next steps:"
 echo "  1. Log out and select 'Niri' from the SDDM session picker"
-echo "  2. To customize monitor settings, edit the output section in:"
+echo "  2. Add wallpapers to $WALLPAPER_DIR/"
+echo "  3. To customize monitor settings, edit the output section in:"
 echo "     $NIRI_CONFIG_DIR/config.kdl (run 'niri msg outputs' for details)"
+echo "  4. Open noctalia settings (Super+Comma) to customize the shell"
 echo
