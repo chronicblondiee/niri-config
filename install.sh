@@ -70,8 +70,8 @@ ok "Arch-based system detected"
 echo
 info "Step 2: Install packages"
 
-PACMAN_PACKAGES=(niri xwayland-satellite xdg-desktop-portal-gnome)
-AUR_PACKAGES=(noctalia-shell)
+PACMAN_PACKAGES=(niri xwayland-satellite xdg-desktop-portal-gnome qt6-svg qt6-declarative)
+AUR_PACKAGES=(noctalia-shell catppuccin-sddm-theme-mocha)
 MISSING_PACMAN=()
 MISSING_AUR=()
 
@@ -257,6 +257,34 @@ else
     else
         warn "Skipping SDDM session entry"
     fi
+fi
+
+# Configure SDDM (autologin + theme)
+SDDM_CONF="/etc/sddm.conf"
+CURRENT_USER=$(whoami)
+SDDM_NEEDS_UPDATE=false
+
+if [[ -f "$SDDM_CONF" ]]; then
+    if ! grep -q "Session=niri" "$SDDM_CONF" || ! grep -q "User=$CURRENT_USER" "$SDDM_CONF"; then
+        SDDM_NEEDS_UPDATE=true
+    fi
+    if ! grep -q "Current=catppuccin-mocha-mauve" "$SDDM_CONF"; then
+        SDDM_NEEDS_UPDATE=true
+    fi
+else
+    SDDM_NEEDS_UPDATE=true
+fi
+
+if [[ "$SDDM_NEEDS_UPDATE" == "true" ]]; then
+    info "SDDM config (autologin + Catppuccin theme, requires sudo)"
+    if confirm "Configure SDDM to autologin as $CURRENT_USER into niri with Catppuccin theme?"; then
+        printf '[Autologin]\nUser=%s\nSession=niri\n\n[Theme]\nCurrent=catppuccin-mocha-mauve\n' "$CURRENT_USER" | sudo tee "$SDDM_CONF" >/dev/null
+        ok "SDDM configured (autologin + Catppuccin Mocha theme)"
+    else
+        warn "Skipping SDDM configuration"
+    fi
+else
+    ok "SDDM already configured (autologin + Catppuccin theme)"
 fi
 
 # ─────────────────────────────────────────────
