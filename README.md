@@ -11,14 +11,26 @@ Standalone [niri](https://github.com/YaLTeR/niri) scrollable-tiling Wayland comp
 ## Quick Install
 
 ```bash
-git clone git@github.com:chronicblondiee/niri-config.git ~/Projects/niri
-cd ~/Projects/niri
+git clone git@github.com:chronicblondiee/niri-config.git
+cd niri-config
 ./install.sh
 ```
 
-The installer is interactive — it installs packages, copies configs, sets up services, and configures SDDM. Every step asks for confirmation and creates backups before modifying files.
+The installer is interactive and idempotent — every step asks for confirmation and creates `.bak` backups before modifying files. It handles:
 
-On systems with existing compositor setups (Hyprland, Sway, ML4W), the installer detects conflicts and offers to run `cleanup.sh` first.
+1. **Conflict detection** — finds existing compositors (Hyprland, Sway) and offers to run `cleanup.sh`
+2. **Broken symlink cleanup** — scans `~/.config` for dead links from old setups
+3. **Package installation** — official repos via `pacman`, AUR via `paru`/`yay`
+4. **Config deployment** — niri, noctalia-shell, kitty, fish, GTK dark theme
+5. **Directory setup** — `~/Pictures/Wallpapers/` and `~/Pictures/Screenshots/`
+6. **SSH agent** — enables `ssh-agent.socket`, disables conflicting agents (gnome-keyring, kwallet, gcr)
+7. **Service cleanup** — masks conflicting notification daemons (swaync, dunst, mako)
+8. **XDG portals** — configures `xdg-desktop-portal-gnome`, removes conflicting backends
+9. **Default shell** — sets fish via `chsh`
+10. **Session files** — installs `start-niri.sh`, SDDM session entry, Catppuccin Mocha SDDM theme
+11. **Validation** — runs `niri validate`
+
+After installing, log out and select **Niri** from the SDDM session picker.
 
 ## Cleanup
 
@@ -132,11 +144,20 @@ chsh -s /usr/bin/fish
 ### 4. Install session files
 
 ```bash
+mkdir -p ~/.local/bin
 cp sessions/start-niri.sh ~/.local/bin/start-niri.sh
 chmod +x ~/.local/bin/start-niri.sh
 
 # SDDM session entry (requires sudo)
 sed "s|/home/brown|$HOME|g" sessions/niri.desktop | sudo tee /usr/share/wayland-sessions/niri.desktop >/dev/null
+
+# SDDM Catppuccin theme (requires sudo)
+# Appends [Theme] section if missing, or updates existing Current= line
+if grep -q '^\[Theme\]' /etc/sddm.conf 2>/dev/null; then
+    sudo sed -i '/^\[Theme\]/,/^\[/{s/^Current=.*/Current=catppuccin-mocha-mauve/}' /etc/sddm.conf
+else
+    printf '\n[Theme]\nCurrent=catppuccin-mocha-mauve\n' | sudo tee -a /etc/sddm.conf >/dev/null
+fi
 ```
 
 ### 5. Validate
