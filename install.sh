@@ -191,7 +191,9 @@ else
     done
 
     if [[ -z "$AUR_HELPER" ]]; then
-        err "No AUR helper found (paru or yay). Install one first, then install: ${MISSING_AUR[*]}"
+        err "No AUR helper found (paru or yay). Install one first."
+        err "Cannot continue without AUR packages: ${MISSING_AUR[*]}"
+        exit 1
     else
         info "AUR packages to install (via $AUR_HELPER): ${MISSING_AUR[*]}"
         if confirm "Install with $AUR_HELPER?"; then
@@ -212,18 +214,72 @@ info "Step 3: Install niri config"
 
 mkdir -p "$NIRI_CONFIG_DIR"
 
+NIRI_CONFIG_INSTALLED=false
 if [[ -f "$NIRI_CONFIG_DIR/config.kdl" ]]; then
     ok "Niri config already exists at $NIRI_CONFIG_DIR/config.kdl"
     if confirm "Overwrite with repo version?" "n"; then
         backup_file "$NIRI_CONFIG_DIR/config.kdl"
         cp "$SCRIPT_DIR/config/niri/config.kdl" "$NIRI_CONFIG_DIR/config.kdl"
+        NIRI_CONFIG_INSTALLED=true
         ok "Niri config updated"
     else
         warn "Keeping existing niri config"
     fi
 else
     cp "$SCRIPT_DIR/config/niri/config.kdl" "$NIRI_CONFIG_DIR/config.kdl"
+    NIRI_CONFIG_INSTALLED=true
     ok "Niri config installed to $NIRI_CONFIG_DIR/config.kdl"
+fi
+
+# Auto-detect monitor and replace __OUTPUT_BLOCK__ placeholder
+if [[ "$NIRI_CONFIG_INSTALLED" == "true" ]] && grep -q '__OUTPUT_BLOCK__' "$NIRI_CONFIG_DIR/config.kdl"; then
+    info "Detecting monitor output..."
+
+    OUTPUT_NAME=""
+    OUTPUT_MODE=""
+
+    # Method 1: niri msg outputs (if niri is running)
+    if command -v niri &>/dev/null && niri msg outputs &>/dev/null 2>&1; then
+        OUTPUT_NAME=$(niri msg outputs 2>/dev/null | grep '^Output' | head -1 | awk '{print $2}' | tr -d '"')
+        if [[ -n "$OUTPUT_NAME" ]]; then
+            OUTPUT_MODE=$(niri msg outputs 2>/dev/null | grep -A5 "^Output \"$OUTPUT_NAME\"" | grep 'current mode' | grep -oP '\d+x\d+@[\d.]+')
+        fi
+    fi
+
+    # Method 2: DRM sysfs fallback (works from TTY)
+    if [[ -z "$OUTPUT_NAME" ]]; then
+        for drm in /sys/class/drm/card*-*/; do
+            if [[ "$(cat "$drm/status" 2>/dev/null)" == "connected" ]]; then
+                OUTPUT_NAME=$(basename "$drm" | sed 's/^card[0-9]*-//')
+                OUTPUT_MODE=$(head -1 "$drm/modes" 2>/dev/null | tr -s ' ' | xargs)
+                if [[ -n "$OUTPUT_MODE" ]]; then
+                    # DRM modes format is "WxH" without refresh — append a wildcard-safe default
+                    # niri accepts just "WxH" without the refresh rate
+                    OUTPUT_MODE=$(echo "$OUTPUT_MODE" | awk '{print $1}')
+                fi
+                break
+            fi
+        done
+    fi
+
+    if [[ -n "$OUTPUT_NAME" ]]; then
+        ok "Detected output: $OUTPUT_NAME${OUTPUT_MODE:+ ($OUTPUT_MODE)}"
+
+        # Build the output block
+        if [[ -n "$OUTPUT_MODE" ]]; then
+            OUTPUT_BLOCK="output \"$OUTPUT_NAME\" {\n    mode \"$OUTPUT_MODE\"\n    scale 1.0\n}"
+        else
+            OUTPUT_BLOCK="output \"$OUTPUT_NAME\" {\n    scale 1.0\n}"
+        fi
+
+        sed -i "s|// __OUTPUT_BLOCK__.*|$(echo -e "$OUTPUT_BLOCK")|" "$NIRI_CONFIG_DIR/config.kdl"
+        ok "Output block configured for $OUTPUT_NAME"
+    else
+        warn "Could not detect monitor — leaving output placeholder"
+        warn "Edit the output section in $NIRI_CONFIG_DIR/config.kdl manually"
+        # Replace placeholder with a commented example so niri doesn't error
+        sed -i 's|// __OUTPUT_BLOCK__.*|// No output detected — uncomment and edit:\n// output "DP-1" {\n//     mode "1920x1080"\n//     scale 1.0\n// }|' "$NIRI_CONFIG_DIR/config.kdl"
+    fi
 fi
 
 # ─────────────────────────────────────────────
