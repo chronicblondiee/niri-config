@@ -9,6 +9,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NIRI_CONFIG_DIR="$HOME/.config/niri"
 NOCTALIA_CONFIG_DIR="$HOME/.config/noctalia"
+KITTY_CONFIG_DIR="$HOME/.config/kitty"
+FISH_CONFIG_DIR="$HOME/.config/fish"
+GTK3_CONFIG_DIR="$HOME/.config/gtk-3.0"
+GTK4_CONFIG_DIR="$HOME/.config/gtk-4.0"
 WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
 
 # Colors
@@ -62,6 +66,37 @@ if ! command -v pacman &>/dev/null; then
     exit 1
 fi
 ok "Arch-based system detected"
+
+# ─────────────────────────────────────────────
+# Step 1b: Clean up broken symlinks in ~/.config
+# ─────────────────────────────────────────────
+
+echo
+info "Step 1b: Clean up broken symlinks in ~/.config"
+
+BROKEN_LINKS=()
+while IFS= read -r -d '' link; do
+    BROKEN_LINKS+=("$link")
+done < <(find "$HOME/.config" -maxdepth 3 -type l ! -exec test -e {} \; -print0 2>/dev/null)
+
+if [[ ${#BROKEN_LINKS[@]} -eq 0 ]]; then
+    ok "No broken symlinks found"
+else
+    echo "  Found ${#BROKEN_LINKS[@]} broken symlink(s):"
+    for link in "${BROKEN_LINKS[@]}"; do
+        target=$(readlink "$link" 2>/dev/null || echo "unknown")
+        echo -e "    ${YELLOW}${link}${NC} -> ${target}"
+    done
+    echo
+    if confirm "Remove broken symlinks?"; then
+        for link in "${BROKEN_LINKS[@]}"; do
+            rm "$link"
+        done
+        ok "Broken symlinks removed"
+    else
+        warn "Keeping broken symlinks"
+    fi
+fi
 
 # ─────────────────────────────────────────────
 # Step 2: Install packages
@@ -171,11 +206,82 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 3b: Create wallpaper directory
+# Step 3b: Install kitty config
 # ─────────────────────────────────────────────
 
 echo
-info "Step 3b: Create wallpaper directory"
+info "Step 3b: Install kitty config"
+
+mkdir -p "$KITTY_CONFIG_DIR"
+
+if [[ -f "$KITTY_CONFIG_DIR/kitty.conf" ]]; then
+    ok "Kitty config already exists at $KITTY_CONFIG_DIR/kitty.conf"
+    if confirm "Overwrite with repo version?" "n"; then
+        backup_file "$KITTY_CONFIG_DIR/kitty.conf"
+        cp "$SCRIPT_DIR/config/kitty/kitty.conf" "$KITTY_CONFIG_DIR/kitty.conf"
+        ok "Kitty config updated"
+    else
+        warn "Keeping existing kitty config"
+    fi
+else
+    cp "$SCRIPT_DIR/config/kitty/kitty.conf" "$KITTY_CONFIG_DIR/kitty.conf"
+    ok "Kitty config installed to $KITTY_CONFIG_DIR/kitty.conf"
+fi
+
+# ─────────────────────────────────────────────
+# Step 3c: Install fish config
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3c: Install fish config"
+
+mkdir -p "$FISH_CONFIG_DIR"
+
+if [[ -f "$FISH_CONFIG_DIR/config.fish" ]]; then
+    ok "Fish config already exists at $FISH_CONFIG_DIR/config.fish"
+    if confirm "Overwrite with repo version?" "n"; then
+        backup_file "$FISH_CONFIG_DIR/config.fish"
+        cp "$SCRIPT_DIR/config/fish/config.fish" "$FISH_CONFIG_DIR/config.fish"
+        ok "Fish config updated"
+    else
+        warn "Keeping existing fish config"
+    fi
+else
+    cp "$SCRIPT_DIR/config/fish/config.fish" "$FISH_CONFIG_DIR/config.fish"
+    ok "Fish config installed to $FISH_CONFIG_DIR/config.fish"
+fi
+
+# ─────────────────────────────────────────────
+# Step 3d: Install GTK configs
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3d: Install GTK configs (dark theme)"
+
+for gtk_ver in 3.0 4.0; do
+    dest_dir="$HOME/.config/gtk-${gtk_ver}"
+    mkdir -p "$dest_dir"
+    if [[ -f "$dest_dir/settings.ini" ]]; then
+        ok "GTK ${gtk_ver} config already exists"
+        if confirm "Overwrite GTK ${gtk_ver} config?" "n"; then
+            backup_file "$dest_dir/settings.ini"
+            cp "$SCRIPT_DIR/config/gtk-${gtk_ver}/settings.ini" "$dest_dir/settings.ini"
+            ok "GTK ${gtk_ver} config updated"
+        else
+            warn "Keeping existing GTK ${gtk_ver} config"
+        fi
+    else
+        cp "$SCRIPT_DIR/config/gtk-${gtk_ver}/settings.ini" "$dest_dir/settings.ini"
+        ok "GTK ${gtk_ver} config installed"
+    fi
+done
+
+# ─────────────────────────────────────────────
+# Step 3e: Create wallpaper directory
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3e: Create wallpaper directory"
 
 if [[ -d "$WALLPAPER_DIR" ]]; then
     ok "Wallpaper directory already exists: $WALLPAPER_DIR"
@@ -190,7 +296,7 @@ fi
 # ─────────────────────────────────────────────
 
 echo
-info "Step 3c: Disable conflicting notification daemons"
+info "Step 3f: Disable conflicting notification daemons"
 
 # swaync conflicts with noctalia's built-in notification server
 if systemctl --user is-active swaync &>/dev/null; then
@@ -259,15 +365,11 @@ else
     fi
 fi
 
-# Configure SDDM (autologin + theme)
+# Configure SDDM theme
 SDDM_CONF="/etc/sddm.conf"
-CURRENT_USER=$(whoami)
 SDDM_NEEDS_UPDATE=false
 
 if [[ -f "$SDDM_CONF" ]]; then
-    if ! grep -q "Session=niri" "$SDDM_CONF" || ! grep -q "User=$CURRENT_USER" "$SDDM_CONF"; then
-        SDDM_NEEDS_UPDATE=true
-    fi
     if ! grep -q "Current=catppuccin-mocha-mauve" "$SDDM_CONF"; then
         SDDM_NEEDS_UPDATE=true
     fi
@@ -276,15 +378,15 @@ else
 fi
 
 if [[ "$SDDM_NEEDS_UPDATE" == "true" ]]; then
-    info "SDDM config (autologin + Catppuccin theme, requires sudo)"
-    if confirm "Configure SDDM to autologin as $CURRENT_USER into niri with Catppuccin theme?"; then
-        printf '[Autologin]\nUser=%s\nSession=niri\n\n[Theme]\nCurrent=catppuccin-mocha-mauve\n' "$CURRENT_USER" | sudo tee "$SDDM_CONF" >/dev/null
-        ok "SDDM configured (autologin + Catppuccin Mocha theme)"
+    info "SDDM Catppuccin theme (requires sudo)"
+    if confirm "Set SDDM theme to Catppuccin Mocha?"; then
+        printf '[Theme]\nCurrent=catppuccin-mocha-mauve\n' | sudo tee "$SDDM_CONF" >/dev/null
+        ok "SDDM theme configured (Catppuccin Mocha)"
     else
-        warn "Skipping SDDM configuration"
+        warn "Skipping SDDM theme configuration"
     fi
 else
-    ok "SDDM already configured (autologin + Catppuccin theme)"
+    ok "SDDM theme already configured (Catppuccin Mocha)"
 fi
 
 # ─────────────────────────────────────────────
@@ -316,6 +418,9 @@ echo
 info "What was set up:"
 echo "  - Niri config:    $NIRI_CONFIG_DIR/config.kdl"
 echo "  - Noctalia shell: $NOCTALIA_CONFIG_DIR/settings.json"
+echo "  - Kitty terminal: $KITTY_CONFIG_DIR/kitty.conf"
+echo "  - Fish shell:     $FISH_CONFIG_DIR/config.fish"
+echo "  - GTK 3.0/4.0:    Dark theme + Adwaita cursor"
 echo "  - Wallpapers:     $WALLPAPER_DIR/"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:    /usr/share/wayland-sessions/niri.desktop"

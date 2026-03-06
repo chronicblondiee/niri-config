@@ -48,6 +48,19 @@ cp config/niri/config.kdl ~/.config/niri/config.kdl
 mkdir -p ~/.config/noctalia
 sed "s|__HOME__|$HOME|g" config/noctalia/settings.json > ~/.config/noctalia/settings.json
 
+# Kitty terminal (Catppuccin Mocha theme)
+mkdir -p ~/.config/kitty
+cp config/kitty/kitty.conf ~/.config/kitty/kitty.conf
+
+# Fish shell
+mkdir -p ~/.config/fish
+cp config/fish/config.fish ~/.config/fish/config.fish
+
+# GTK dark theme
+mkdir -p ~/.config/gtk-3.0 ~/.config/gtk-4.0
+cp config/gtk-3.0/settings.ini ~/.config/gtk-3.0/settings.ini
+cp config/gtk-4.0/settings.ini ~/.config/gtk-4.0/settings.ini
+
 # Wallpaper directory
 mkdir -p ~/Pictures/Wallpapers
 
@@ -246,11 +259,20 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
 ```
 ├── README.md
 ├── install.sh
+├── cleanup.sh
 ├── config/
 │   ├── niri/
 │   │   └── config.kdl
-│   └── noctalia/
-│       └── settings.json
+│   ├── noctalia/
+│   │   └── settings.json
+│   ├── kitty/
+│   │   └── kitty.conf
+│   ├── fish/
+│   │   └── config.fish
+│   ├── gtk-3.0/
+│   │   └── settings.ini
+│   └── gtk-4.0/
+│       └── settings.ini
 └── sessions/
     ├── niri.desktop
     └── start-niri.sh

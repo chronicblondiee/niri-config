@@ -7,7 +7,13 @@ Standalone niri compositor configuration for Arch Linux. The installer (`install
 ## Key Files
 
 - `install.sh` — Main installer script (bash, interactive)
+- `cleanup.sh` — Removes old Hyprland/ML4W dependencies
 - `config/niri/config.kdl` — Niri compositor config (KDL format)
+- `config/noctalia/settings.json` — Noctalia-shell settings
+- `config/kitty/kitty.conf` — Kitty terminal config (Catppuccin Mocha)
+- `config/fish/config.fish` — Fish shell config (Wayland env vars, aliases)
+- `config/gtk-3.0/settings.ini` — GTK3 dark theme settings
+- `config/gtk-4.0/settings.ini` — GTK4 dark theme settings
 - `sessions/start-niri.sh` — Session startup wrapper called by SDDM
 - `sessions/niri.desktop` — SDDM wayland session entry
 
