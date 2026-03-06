@@ -83,8 +83,6 @@ OLD_TOOLS=(
     grimblast-git # screenshot wrapper — niri has built-in screenshots
     nwg-look      # GTK theme editor — not needed for niri/noctalia
     wdisplays     # display config — use niri msg outputs
-    kwallet        # KDE wallet — not needed, SSH handled by ssh-agent + lxqt-openssh-askpass
-    kwallet-pam    # KDE wallet PAM — not needed
     kwalletmanager # KDE wallet GUI — not needed
 )
 
@@ -134,8 +132,17 @@ else
     done
     echo
     if confirm "Remove these ${#INSTALLED_HYPRLAND[@]} Hyprland packages?"; then
-        sudo pacman -Rns "${INSTALLED_HYPRLAND[@]}"
-        ok "Hyprland packages removed"
+        local failed=()
+        for pkg in "${INSTALLED_HYPRLAND[@]}"; do
+            if ! sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null; then
+                failed+=("$pkg")
+            fi
+        done
+        if [[ ${#failed[@]} -gt 0 ]]; then
+            warn "Could not remove (required by other packages): ${failed[*]}"
+        else
+            ok "Hyprland packages removed"
+        fi
     else
         warn "Skipping Hyprland package removal"
     fi
@@ -159,8 +166,17 @@ else
     done
     echo
     if confirm "Remove these ${#INSTALLED_OLD[@]} packages?"; then
-        sudo pacman -Rns "${INSTALLED_OLD[@]}"
-        ok "Old tools removed"
+        local failed=()
+        for pkg in "${INSTALLED_OLD[@]}"; do
+            if ! sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null; then
+                failed+=("$pkg")
+            fi
+        done
+        if [[ ${#failed[@]} -gt 0 ]]; then
+            warn "Could not remove (required by other packages): ${failed[*]}"
+        else
+            ok "Old tools removed"
+        fi
     else
         warn "Skipping old tool removal"
     fi
@@ -184,8 +200,17 @@ else
     done
     echo
     if confirm "Remove these ${#INSTALLED_ML4W[@]} ML4W packages?"; then
-        sudo pacman -Rns "${INSTALLED_ML4W[@]}"
-        ok "ML4W packages removed"
+        local failed=()
+        for pkg in "${INSTALLED_ML4W[@]}"; do
+            if ! sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null; then
+                failed+=("$pkg")
+            fi
+        done
+        if [[ ${#failed[@]} -gt 0 ]]; then
+            warn "Could not remove (required by other packages): ${failed[*]}"
+        else
+            ok "ML4W packages removed"
+        fi
     else
         warn "Skipping ML4W package removal"
     fi
