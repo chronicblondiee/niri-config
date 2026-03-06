@@ -63,7 +63,7 @@ spawn-at-startup "xwayland-satellite"
 spawn-at-startup "qs" "-c" "noctalia-shell"
 spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
 spawn-at-startup "sh" "-c" "/usr/lib/polkit-kde-authentication-agent-1"
-// ssh-agent managed by systemd (gcr-ssh-agent.socket)
+spawn-at-startup "sh" "-c" "sleep 2 && SSH_ASKPASS=/usr/bin/lxqt-openssh-askpass SSH_ASKPASS_REQUIRE=force ssh-add < /dev/null"
 
 // ----- Window Rules -----
 window-rule {

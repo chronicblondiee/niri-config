@@ -19,8 +19,10 @@ if command -q nvim
     alias vim='nvim'
 end
 
-# SSH agent (GCR — prompts for passphrase on first use, caches for session)
-set -gx SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/gcr/ssh"
+# SSH agent (systemd ssh-agent.socket + lxqt-openssh-askpass for GUI prompt)
+set -gx SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/ssh-agent.socket"
+set -gx SSH_ASKPASS /usr/bin/lxqt-openssh-askpass
+set -gx SSH_ASKPASS_REQUIRE prefer
 
 # Wayland env vars
 set -gx MOZ_ENABLE_WAYLAND 1
