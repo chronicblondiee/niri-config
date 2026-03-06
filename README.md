@@ -24,10 +24,12 @@ The installer is interactive — it installs packages, copies configs and script
 
 ```bash
 # Official repos
-sudo pacman -S --needed niri xwayland-satellite xdg-desktop-portal-gnome
+sudo pacman -S --needed niri xwayland-satellite xdg-desktop-portal-gnome \
+    qt6-svg qt6-declarative kitty fish nautilus wl-clipboard cliphist \
+    polkit-kde-agent lxqt-openssh-askpass openssh
 
 # AUR (noctalia-shell provides bar, notifications, wallpaper, lock screen)
-paru -S noctalia-shell
+paru -S noctalia-shell zen-browser-bin
 ```
 
 | Package | Purpose |
@@ -36,6 +38,13 @@ paru -S noctalia-shell
 | `noctalia-shell` | Desktop shell (bar, notifications, wallpaper, lock screen) |
 | `xwayland-satellite` | X11 app compatibility for niri |
 | `xdg-desktop-portal-gnome` | Screen sharing, file dialogs |
+| `kitty` | Terminal emulator |
+| `fish` | Fish shell |
+| `nautilus` | File manager |
+| `wl-clipboard` + `cliphist` | Clipboard history |
+| `polkit-kde-agent` | Polkit authentication prompts |
+| `lxqt-openssh-askpass` | SSH key passphrase GUI prompt |
+| `zen-browser-bin` | Web browser (AUR) |
 
 ### 2. Install configs
 
@@ -61,8 +70,12 @@ mkdir -p ~/.config/gtk-3.0 ~/.config/gtk-4.0
 cp config/gtk-3.0/settings.ini ~/.config/gtk-3.0/settings.ini
 cp config/gtk-4.0/settings.ini ~/.config/gtk-4.0/settings.ini
 
-# Wallpaper directory
-mkdir -p ~/Pictures/Wallpapers
+# Wallpaper + screenshot directories
+mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots
+
+# SSH agent (systemd socket + GUI passphrase prompt)
+systemctl --user enable --now ssh-agent.socket
+systemctl --user disable gcr-ssh-agent.socket 2>/dev/null || true
 
 # Disable swaync if installed (conflicts with noctalia notifications)
 systemctl --user mask swaync 2>/dev/null || true
@@ -178,9 +191,9 @@ niri validate
 
 | Binding | Action |
 |---------|--------|
-| `Print` | Screenshot (select region) |
-| `Super+Print` | Screenshot full screen |
-| `Super+Shift+Print` | Screenshot window |
+| `Super+S` / `Print` | Screenshot (select region) |
+| `Super+Shift+S` / `Super+Print` | Screenshot full screen |
+| `Super+Alt+S` / `Super+Shift+Print` | Screenshot window |
 | `Super+Ctrl+C` / `XF86Calculator` | Calculator |
 | `Super+Escape` | Toggle keyboard shortcuts inhibit |
 | `Super+Shift+P` | Power off monitors |
@@ -289,6 +302,6 @@ rm ~/.local/bin/start-niri.sh
 sudo rm /usr/share/wayland-sessions/niri.desktop
 
 # Uninstall packages (optional)
-sudo pacman -Rns niri xwayland-satellite xdg-desktop-portal-gnome
-paru -Rns noctalia-shell
+sudo pacman -Rns niri xwayland-satellite xdg-desktop-portal-gnome lxqt-openssh-askpass
+paru -Rns noctalia-shell zen-browser-bin
 ```

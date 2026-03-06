@@ -105,8 +105,22 @@ fi
 echo
 info "Step 2: Install packages"
 
-PACMAN_PACKAGES=(niri xwayland-satellite xdg-desktop-portal-gnome qt6-svg qt6-declarative)
-AUR_PACKAGES=(noctalia-shell catppuccin-sddm-theme-mocha)
+PACMAN_PACKAGES=(
+    niri
+    xwayland-satellite
+    xdg-desktop-portal-gnome
+    qt6-svg
+    qt6-declarative
+    kitty
+    fish
+    nautilus
+    wl-clipboard
+    cliphist
+    polkit-kde-agent
+    lxqt-openssh-askpass
+    openssh
+)
+AUR_PACKAGES=(noctalia-shell catppuccin-sddm-theme-mocha zen-browser-bin)
 MISSING_PACMAN=()
 MISSING_AUR=()
 
@@ -291,12 +305,50 @@ else
     info "Add wallpaper images to this directory for noctalia to use"
 fi
 
+# Screenshots directory
+SCREENSHOT_DIR="$HOME/Pictures/Screenshots"
+if [[ -d "$SCREENSHOT_DIR" ]]; then
+    ok "Screenshots directory already exists: $SCREENSHOT_DIR"
+else
+    mkdir -p "$SCREENSHOT_DIR"
+    ok "Created $SCREENSHOT_DIR"
+fi
+
 # ─────────────────────────────────────────────
-# Step 3c: Disable conflicting services
+# Step 3f: Enable SSH agent
 # ─────────────────────────────────────────────
 
 echo
-info "Step 3f: Disable conflicting notification daemons"
+info "Step 3f: Enable SSH agent (systemd socket + lxqt-openssh-askpass)"
+
+if systemctl --user is-enabled ssh-agent.socket &>/dev/null 2>&1; then
+    ok "ssh-agent.socket already enabled"
+else
+    if confirm "Enable systemd ssh-agent.socket?"; then
+        systemctl --user enable ssh-agent.socket
+        systemctl --user start ssh-agent.socket
+        ok "ssh-agent.socket enabled and started"
+    else
+        warn "Skipping SSH agent setup — you'll need to manage SSH keys manually"
+    fi
+fi
+
+# Disable gcr-ssh-agent if active (conflicts with systemd ssh-agent)
+if systemctl --user is-enabled gcr-ssh-agent.socket &>/dev/null 2>&1; then
+    info "gcr-ssh-agent.socket is enabled — it conflicts with systemd ssh-agent"
+    if confirm "Disable gcr-ssh-agent.socket?"; then
+        systemctl --user disable gcr-ssh-agent.socket
+        systemctl --user stop gcr-ssh-agent.socket 2>/dev/null || true
+        ok "gcr-ssh-agent.socket disabled"
+    fi
+fi
+
+# ─────────────────────────────────────────────
+# Step 3g: Disable conflicting services
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3g: Disable conflicting notification daemons"
 
 # swaync conflicts with noctalia's built-in notification server
 if systemctl --user is-active swaync &>/dev/null; then
@@ -422,6 +474,8 @@ echo "  - Kitty terminal: $KITTY_CONFIG_DIR/kitty.conf"
 echo "  - Fish shell:     $FISH_CONFIG_DIR/config.fish"
 echo "  - GTK 3.0/4.0:    Dark theme + Adwaita cursor"
 echo "  - Wallpapers:     $WALLPAPER_DIR/"
+echo "  - Screenshots:    $HOME/Pictures/Screenshots/"
+echo "  - SSH agent:      systemd ssh-agent.socket + lxqt-openssh-askpass"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:    /usr/share/wayland-sessions/niri.desktop"
 echo
