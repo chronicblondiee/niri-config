@@ -360,6 +360,10 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
     └── start-niri.sh
 ```
 
+## Wallpapers
+
+Catppuccin Mocha wallpapers from [orangci/walls-catppuccin-mocha](https://github.com/orangci/walls-catppuccin-mocha) — 330+ images color-matched to the Mocha palette. Place them in `~/Pictures/Wallpapers/` and cycle with `Super+Shift+W` (random) or `Super+Ctrl+W` (picker).
+
 ## Uninstall
 
 ```bash
