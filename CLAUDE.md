@@ -15,7 +15,7 @@ Standalone niri compositor configuration for Arch Linux. The installer (`install
 - `config/gtk-3.0/settings.ini` — GTK3 dark theme settings
 - `config/gtk-4.0/settings.ini` — GTK4 dark theme settings
 - `sessions/start-niri.sh` — Session startup wrapper called by SDDM
-- `sessions/niri.desktop` — SDDM wayland session entry (`/home/brown` replaced with `$HOME` at install time)
+- `sessions/niri.desktop` — SDDM wayland session entry (`__HOME__` placeholder replaced with `$HOME` at install time)
 
 ## Architecture
 

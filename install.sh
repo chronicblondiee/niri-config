@@ -522,14 +522,14 @@ if [[ -f "$SESSION_FILE" ]]; then
     else
         info "Current session entry uses: $(grep '^Exec=' "$SESSION_FILE")"
         if confirm "Update to use start-niri.sh wrapper?" "y"; then
-            sed "s|/home/brown|$HOME|g" "$SCRIPT_DIR/sessions/niri.desktop" | sudo tee "$SESSION_FILE" >/dev/null
+            sed "s|__HOME__|$HOME|g" "$SCRIPT_DIR/sessions/niri.desktop" | sudo tee "$SESSION_FILE" >/dev/null
             ok "SDDM session entry updated"
         fi
     fi
 else
     info "Installing SDDM session entry (requires sudo)"
     if confirm "Install $SESSION_FILE?"; then
-        sed "s|/home/brown|$HOME|g" "$SCRIPT_DIR/sessions/niri.desktop" | sudo tee "$SESSION_FILE" >/dev/null
+        sed "s|__HOME__|$HOME|g" "$SCRIPT_DIR/sessions/niri.desktop" | sudo tee "$SESSION_FILE" >/dev/null
         ok "SDDM session entry installed"
     else
         warn "Skipping SDDM session entry"

@@ -149,7 +149,7 @@ cp sessions/start-niri.sh ~/.local/bin/start-niri.sh
 chmod +x ~/.local/bin/start-niri.sh
 
 # SDDM session entry (requires sudo)
-sed "s|/home/brown|$HOME|g" sessions/niri.desktop | sudo tee /usr/share/wayland-sessions/niri.desktop >/dev/null
+sed "s|__HOME__|$HOME|g" sessions/niri.desktop | sudo tee /usr/share/wayland-sessions/niri.desktop >/dev/null
 
 # SDDM Catppuccin theme (requires sudo)
 # Appends [Theme] section if missing, or updates existing Current= line

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Niri
 Comment=A scrollable-tiling Wayland compositor
-Exec=/home/brown/.local/bin/start-niri.sh
+Exec=__HOME__/.local/bin/start-niri.sh
 Type=Application
 DesktopNames=niri
