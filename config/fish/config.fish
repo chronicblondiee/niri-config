@@ -19,6 +19,9 @@ if command -q nvim
     alias vim='nvim'
 end
 
+# SSH agent (GCR — prompts for passphrase on first use, caches for session)
+set -gx SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/gcr/ssh"
+
 # Wayland env vars
 set -gx MOZ_ENABLE_WAYLAND 1
 set -gx QT_QPA_PLATFORM wayland
