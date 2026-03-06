@@ -68,11 +68,41 @@ fi
 ok "Arch-based system detected"
 
 # ─────────────────────────────────────────────
-# Step 1b: Clean up broken symlinks in ~/.config
+# Step 1b: Detect old compositor setups
 # ─────────────────────────────────────────────
 
 echo
-info "Step 1b: Clean up broken symlinks in ~/.config"
+info "Step 1b: Check for existing compositor setups"
+
+OLD_COMPOSITORS=()
+for pkg in hyprland sway; do
+    if pacman -Qi "$pkg" &>/dev/null; then
+        OLD_COMPOSITORS+=("$pkg")
+    fi
+done
+
+if [[ ${#OLD_COMPOSITORS[@]} -gt 0 ]]; then
+    warn "Found existing compositor(s): ${OLD_COMPOSITORS[*]}"
+    info "These may have conflicting configs, services, and packages"
+    if [[ -f "$SCRIPT_DIR/cleanup.sh" ]]; then
+        if confirm "Run cleanup.sh first to remove old Hyprland/ML4W dependencies?" "n"; then
+            bash "$SCRIPT_DIR/cleanup.sh"
+            echo
+            info "Continuing with installation..."
+        else
+            warn "Skipping cleanup — conflicts may need manual resolution"
+        fi
+    fi
+else
+    ok "No conflicting compositors found"
+fi
+
+# ─────────────────────────────────────────────
+# Step 1c: Clean up broken symlinks in ~/.config
+# ─────────────────────────────────────────────
+
+echo
+info "Step 1c: Clean up broken symlinks in ~/.config"
 
 BROKEN_LINKS=()
 while IFS= read -r -d '' link; do
@@ -348,28 +378,117 @@ fi
 # ─────────────────────────────────────────────
 
 echo
-info "Step 3g: Disable conflicting notification daemons"
+info "Step 3g: Disable conflicting services"
 
-# swaync conflicts with noctalia's built-in notification server
-if systemctl --user is-active swaync &>/dev/null; then
-    info "swaync is running — it conflicts with noctalia's notification server"
-    if confirm "Stop and mask swaync?"; then
-        systemctl --user stop swaync
-        systemctl --user mask swaync
-        ok "swaync stopped and masked"
-    else
-        warn "swaync left running — noctalia notifications may not work"
+# Notification daemons that conflict with noctalia's built-in notification server
+CONFLICTING_NOTIF=(swaync dunst mako)
+found_conflict=false
+for svc in "${CONFLICTING_NOTIF[@]}"; do
+    if systemctl --user is-active "$svc" &>/dev/null; then
+        info "$svc is running — it conflicts with noctalia's notification server"
+        if confirm "Stop and mask $svc?"; then
+            systemctl --user stop "$svc"
+            systemctl --user mask "$svc"
+            ok "$svc stopped and masked"
+        else
+            warn "$svc left running — noctalia notifications may not work"
+        fi
+        found_conflict=true
+    elif systemctl --user is-enabled "$svc" &>/dev/null 2>&1; then
+        info "$svc is enabled but not running"
+        if confirm "Mask $svc to prevent it from starting?"; then
+            systemctl --user mask "$svc"
+            ok "$svc masked"
+        else
+            warn "$svc left enabled — it may conflict with noctalia notifications"
+        fi
+        found_conflict=true
     fi
-elif systemctl --user is-enabled swaync &>/dev/null 2>&1; then
-    info "swaync is enabled but not running"
-    if confirm "Mask swaync to prevent it from starting?"; then
-        systemctl --user mask swaync
-        ok "swaync masked"
-    else
-        warn "swaync left enabled — it may conflict with noctalia notifications"
+done
+
+# Other SSH agents that conflict with systemd ssh-agent
+CONFLICTING_SSH_AGENTS=(gnome-keyring-ssh.service gnome-keyring-daemon.service kwalletd5.service kwalletd6.service)
+for svc in "${CONFLICTING_SSH_AGENTS[@]}"; do
+    if systemctl --user is-enabled "$svc" &>/dev/null 2>&1; then
+        info "$svc is enabled — it may conflict with systemd ssh-agent"
+        if confirm "Disable $svc?"; then
+            systemctl --user disable "$svc"
+            systemctl --user stop "$svc" 2>/dev/null || true
+            ok "$svc disabled"
+        else
+            warn "$svc left enabled — may conflict with ssh-agent.socket"
+        fi
+        found_conflict=true
     fi
+done
+
+if [[ "$found_conflict" == "false" ]]; then
+    ok "No conflicting services found"
+fi
+
+# ─────────────────────────────────────────────
+# Step 3h: Configure XDG desktop portal
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3h: Configure XDG desktop portal for niri"
+
+PORTAL_CONF_DIR="$HOME/.config/xdg-desktop-portal"
+PORTAL_CONF="$PORTAL_CONF_DIR/niri-portals.conf"
+mkdir -p "$PORTAL_CONF_DIR"
+
+# Check for conflicting portals
+CONFLICTING_PORTALS=()
+for pkg in xdg-desktop-portal-hyprland xdg-desktop-portal-wlr; do
+    if pacman -Qi "$pkg" &>/dev/null; then
+        CONFLICTING_PORTALS+=("$pkg")
+    fi
+done
+
+if [[ ${#CONFLICTING_PORTALS[@]} -gt 0 ]]; then
+    warn "Found conflicting portal backend(s): ${CONFLICTING_PORTALS[*]}"
+    if confirm "Remove conflicting portal packages?"; then
+        sudo pacman -Rns "${CONFLICTING_PORTALS[@]}"
+        ok "Conflicting portals removed"
+    else
+        warn "Conflicting portals left installed — screen sharing may not work correctly"
+    fi
+fi
+
+if [[ -f "$PORTAL_CONF" ]]; then
+    ok "Portal config already exists: $PORTAL_CONF"
 else
-    ok "No conflicting notification daemons found"
+    cat > "$PORTAL_CONF" <<'PORTAL_EOF'
+[preferred]
+default=gnome
+org.freedesktop.impl.portal.Access=gnome
+org.freedesktop.impl.portal.FileChooser=gnome
+org.freedesktop.impl.portal.Screenshot=gnome
+org.freedesktop.impl.portal.Screencast=gnome
+PORTAL_EOF
+    ok "Portal config installed: $PORTAL_CONF"
+fi
+
+# ─────────────────────────────────────────────
+# Step 3i: Set fish as default shell
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3i: Default shell"
+
+CURRENT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
+FISH_PATH=$(command -v fish 2>/dev/null || echo "/usr/bin/fish")
+
+if [[ "$CURRENT_SHELL" == "$FISH_PATH" ]]; then
+    ok "Fish is already the default shell"
+else
+    info "Current default shell: $CURRENT_SHELL"
+    if confirm "Set fish as your default shell?"; then
+        chsh -s "$FISH_PATH"
+        ok "Default shell changed to fish (effective on next login)"
+    else
+        warn "Keeping $CURRENT_SHELL as default shell"
+    fi
 fi
 
 # ─────────────────────────────────────────────
@@ -432,7 +551,20 @@ fi
 if [[ "$SDDM_NEEDS_UPDATE" == "true" ]]; then
     info "SDDM Catppuccin theme (requires sudo)"
     if confirm "Set SDDM theme to Catppuccin Mocha?"; then
-        printf '[Theme]\nCurrent=catppuccin-mocha-mauve\n' | sudo tee "$SDDM_CONF" >/dev/null
+        if [[ -f "$SDDM_CONF" ]]; then
+            # Preserve existing config, just update/add the theme line
+            if grep -q '^\[Theme\]' "$SDDM_CONF"; then
+                sudo sed -i '/^\[Theme\]/,/^\[/{s/^Current=.*/Current=catppuccin-mocha-mauve/}' "$SDDM_CONF"
+                # If no Current= existed under [Theme], add it
+                if ! grep -q 'Current=catppuccin-mocha-mauve' "$SDDM_CONF"; then
+                    sudo sed -i '/^\[Theme\]/a Current=catppuccin-mocha-mauve' "$SDDM_CONF"
+                fi
+            else
+                printf '\n[Theme]\nCurrent=catppuccin-mocha-mauve\n' | sudo tee -a "$SDDM_CONF" >/dev/null
+            fi
+        else
+            printf '[Theme]\nCurrent=catppuccin-mocha-mauve\n' | sudo tee "$SDDM_CONF" >/dev/null
+        fi
         ok "SDDM theme configured (Catppuccin Mocha)"
     else
         warn "Skipping SDDM theme configuration"
@@ -442,7 +574,7 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 7: Validate
+# Step 5: Validate
 # ─────────────────────────────────────────────
 
 echo
@@ -476,6 +608,7 @@ echo "  - GTK 3.0/4.0:    Dark theme + Adwaita cursor"
 echo "  - Wallpapers:     $WALLPAPER_DIR/"
 echo "  - Screenshots:    $HOME/Pictures/Screenshots/"
 echo "  - SSH agent:      systemd ssh-agent.socket + lxqt-openssh-askpass"
+echo "  - XDG portal:    $PORTAL_CONF_DIR/niri-portals.conf"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:    /usr/share/wayland-sessions/niri.desktop"
 echo

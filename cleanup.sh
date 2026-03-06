@@ -48,29 +48,52 @@ HYPRLAND_PKGS=(
     hyprpaper                   # wallpaper — replaced by noctalia wallpaper
     hyprpicker                  # color picker — hyprland-specific
     hyprshade                   # screen shader — hyprland-specific
-    hyprlauncher                # app launcher — replaced by noctalia/rofi
+    hyprlauncher                # app launcher — replaced by noctalia launcher
+    hyprcursor                  # cursor library — hyprland-specific
+    hyprutils                   # shared library — hyprland-specific
+    hyprgraphics                # graphics library — hyprland-specific
+    hyprwayland-scanner         # wayland scanner — hyprland-specific
+    hyprland-protocols          # wayland protocols — hyprland-specific
+    aquamarine                  # rendering backend — hyprland-specific
     nwg-dock-hyprland           # dock — replaced by noctalia dock
     nwg-displays                # output config — hyprland-specific (use niri msg outputs)
     xdg-desktop-portal-hyprland # portal — replaced by xdg-desktop-portal-gnome
+    xdg-desktop-portal-wlr      # portal — replaced by xdg-desktop-portal-gnome
+    hyprpolkitagent             # polkit agent — replaced by polkit-kde-agent
 )
 
-# Old standalone tools replaced by noctalia-shell
+# Old standalone tools replaced by noctalia-shell or niri builtins
 OLD_TOOLS=(
-    waybar      # bar — replaced by noctalia bar
-    swaync      # notifications — replaced by noctalia notifications
-    swww        # wallpaper daemon — replaced by noctalia wallpaper
-    waypaper    # wallpaper picker — replaced by noctalia wallpaper picker
-    swaylock    # lock screen — replaced by noctalia lock
-    swayidle    # idle daemon — replaced by noctalia idle
-    dunst       # notifications — replaced by noctalia notifications
-    wofi        # launcher — replaced by noctalia launcher
-    rofi        # launcher — replaced by noctalia launcher
-    wlogout     # power menu — replaced by noctalia session menu
-    grim        # screenshots — niri has built-in screenshots
-    slurp       # region select — niri has built-in screenshots
+    waybar        # bar — replaced by noctalia bar
+    swaync        # notifications — replaced by noctalia notifications
+    dunst         # notifications — replaced by noctalia notifications
+    mako          # notifications — replaced by noctalia notifications
+    swww          # wallpaper daemon — replaced by noctalia wallpaper
+    swaybg        # wallpaper setter — replaced by noctalia wallpaper
+    waypaper      # wallpaper picker — replaced by noctalia wallpaper picker
+    swaylock      # lock screen — replaced by noctalia lock
+    swayidle      # idle daemon — replaced by noctalia idle
+    wofi          # launcher — replaced by noctalia launcher
+    rofi          # launcher — replaced by noctalia launcher
+    fuzzel        # launcher — replaced by noctalia launcher
+    bemenu        # launcher — replaced by noctalia launcher
+    wlogout       # power menu — replaced by noctalia session menu
+    grim          # screenshots — niri has built-in screenshots
+    slurp         # region select — niri has built-in screenshots
     grimblast-git # screenshot wrapper — niri has built-in screenshots
-    nwg-look    # GTK theme editor — not needed for niri/noctalia
-    hyprpolkitagent # polkit agent — polkit-kde-agent available instead
+    nwg-look      # GTK theme editor — not needed for niri/noctalia
+    wdisplays     # display config — use niri msg outputs
+    kwallet        # KDE wallet — not needed, SSH handled by ssh-agent + lxqt-openssh-askpass
+    kwallet-pam    # KDE wallet PAM — not needed
+    kwalletmanager # KDE wallet GUI — not needed
+)
+
+# ML4W-specific packages (if migrating from ML4W dotfiles)
+ML4W_PKGS=(
+    ml4w-hyprland
+    ml4w-dotfiles
+    ml4w-welcome
+    ml4w-config
 )
 
 # ─────────────────────────────────────────────
@@ -89,8 +112,10 @@ check_installed() {
 
 INSTALLED_HYPRLAND=()
 INSTALLED_OLD=()
+INSTALLED_ML4W=()
 check_installed HYPRLAND_PKGS INSTALLED_HYPRLAND
 check_installed OLD_TOOLS INSTALLED_OLD
+check_installed ML4W_PKGS INSTALLED_ML4W
 
 # ─────────────────────────────────────────────
 # Step 1: Remove Hyprland packages
@@ -142,42 +167,84 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 3: Unmask/clean systemd user services
+# Step 3: Remove ML4W packages
 # ─────────────────────────────────────────────
 
 echo
-info "Step 3: Clean up systemd user services"
+info "Step 3: ML4W dotfiles packages"
+echo
 
-for svc in swaync waybar; do
+if [[ ${#INSTALLED_ML4W[@]} -eq 0 ]]; then
+    ok "No ML4W packages found"
+else
+    echo "  The following ML4W packages are installed:"
+    for pkg in "${INSTALLED_ML4W[@]}"; do
+        desc=$(pacman -Qi "$pkg" 2>/dev/null | grep "^Description" | sed 's/Description     : //')
+        echo -e "    ${YELLOW}${pkg}${NC} — ${desc}"
+    done
+    echo
+    if confirm "Remove these ${#INSTALLED_ML4W[@]} ML4W packages?"; then
+        sudo pacman -Rns "${INSTALLED_ML4W[@]}"
+        ok "ML4W packages removed"
+    else
+        warn "Skipping ML4W package removal"
+    fi
+fi
+
+# ─────────────────────────────────────────────
+# Step 4: Unmask/clean systemd user services
+# ─────────────────────────────────────────────
+
+echo
+info "Step 4: Clean up systemd user services"
+
+CONFLICTING_SERVICES=(
+    swaync waybar dunst mako
+    hypridle hyprpaper swayidle swaybg
+    gnome-keyring-daemon gnome-keyring-ssh gcr-ssh-agent.socket
+    kwallet kwalletd5 kwalletd6
+)
+
+for svc in "${CONFLICTING_SERVICES[@]}"; do
+    if systemctl --user is-active "$svc" &>/dev/null 2>&1; then
+        info "Stopping $svc"
+        systemctl --user stop "$svc" 2>/dev/null || true
+    fi
     if systemctl --user is-enabled "$svc" &>/dev/null 2>&1 || \
        systemctl --user cat "$svc" &>/dev/null 2>&1; then
-        info "Cleaning up $svc user service"
+        info "Cleaning up $svc"
         systemctl --user unmask "$svc" 2>/dev/null || true
         systemctl --user disable "$svc" 2>/dev/null || true
-        ok "$svc service cleaned up"
+        ok "$svc cleaned up"
     fi
 done
 
 # ─────────────────────────────────────────────
-# Step 4: Remove leftover config directories
+# Step 5: Remove leftover config directories
 # ─────────────────────────────────────────────
 
 echo
-info "Step 4: Remove leftover config directories"
+info "Step 5: Remove leftover config directories"
 
 CONFIG_DIRS=(
     "$HOME/.config/hypr"
     "$HOME/.config/waybar"
     "$HOME/.config/swaync"
     "$HOME/.config/swaylock"
+    "$HOME/.config/swayidle"
     "$HOME/.config/wofi"
     "$HOME/.config/dunst"
+    "$HOME/.config/mako"
+    "$HOME/.config/fuzzel"
     "$HOME/.config/waypaper"
+    "$HOME/.config/hyprlauncher"
     "$HOME/.config/nwg-dock-hyprland"
     "$HOME/.config/nwg-displays"
     "$HOME/.config/hyprshade"
     "$HOME/.config/wlogout"
     "$HOME/.config/rofi"
+    "$HOME/.config/ml4w-hyprland"
+    "$HOME/.config/ml4w-welcome"
 )
 
 FOUND_DIRS=()
@@ -207,11 +274,11 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 5: Remove orphaned dependencies
+# Step 6: Remove orphaned dependencies
 # ─────────────────────────────────────────────
 
 echo
-info "Step 5: Check for orphaned packages"
+info "Step 6: Check for orphaned packages"
 
 ORPHANS=$(pacman -Qdtq 2>/dev/null || true)
 if [[ -z "$ORPHANS" ]]; then
