@@ -132,7 +132,7 @@ else
     done
     echo
     if confirm "Remove these ${#INSTALLED_HYPRLAND[@]} Hyprland packages?"; then
-        local failed=()
+        failed=()
         for pkg in "${INSTALLED_HYPRLAND[@]}"; do
             if ! sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null; then
                 failed+=("$pkg")
@@ -166,7 +166,7 @@ else
     done
     echo
     if confirm "Remove these ${#INSTALLED_OLD[@]} packages?"; then
-        local failed=()
+        failed=()
         for pkg in "${INSTALLED_OLD[@]}"; do
             if ! sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null; then
                 failed+=("$pkg")
@@ -200,7 +200,7 @@ else
     done
     echo
     if confirm "Remove these ${#INSTALLED_ML4W[@]} ML4W packages?"; then
-        local failed=()
+        failed=()
         for pkg in "${INSTALLED_ML4W[@]}"; do
             if ! sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null; then
                 failed+=("$pkg")
