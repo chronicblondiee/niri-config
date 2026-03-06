@@ -16,7 +16,25 @@ cd ~/Projects/niri
 ./install.sh
 ```
 
-The installer is interactive — it installs packages, copies configs and scripts. Every step asks for confirmation and creates backups before modifying files.
+The installer is interactive — it installs packages, copies configs, sets up services, and configures SDDM. Every step asks for confirmation and creates backups before modifying files.
+
+On systems with existing compositor setups (Hyprland, Sway, ML4W), the installer detects conflicts and offers to run `cleanup.sh` first.
+
+## Cleanup
+
+If migrating from Hyprland, Sway, or ML4W, run the cleanup script to remove conflicting packages, services, and configs:
+
+```bash
+./cleanup.sh
+```
+
+This handles:
+- Hyprland ecosystem packages (hyprland, hypridle, hyprlock, hyprpaper, etc.)
+- Old standalone tools replaced by noctalia-shell (waybar, swaync, dunst, swww, rofi, etc.)
+- ML4W dotfiles packages
+- Conflicting systemd services (notification daemons, SSH agents, wallpaper daemons)
+- Leftover config directories
+- Orphaned package dependencies
 
 ## Manual Install
 
@@ -29,7 +47,7 @@ sudo pacman -S --needed niri xwayland-satellite xdg-desktop-portal-gnome \
     polkit-kde-agent lxqt-openssh-askpass openssh
 
 # AUR (noctalia-shell provides bar, notifications, wallpaper, lock screen)
-paru -S noctalia-shell zen-browser-bin
+paru -S noctalia-shell catppuccin-sddm-theme-mocha zen-browser-bin
 ```
 
 | Package | Purpose |
@@ -44,6 +62,7 @@ paru -S noctalia-shell zen-browser-bin
 | `wl-clipboard` + `cliphist` | Clipboard history |
 | `polkit-kde-agent` | Polkit authentication prompts |
 | `lxqt-openssh-askpass` | SSH key passphrase GUI prompt |
+| `catppuccin-sddm-theme-mocha` | SDDM login theme (AUR) |
 | `zen-browser-bin` | Web browser (AUR) |
 
 ### 2. Install configs
@@ -72,30 +91,55 @@ cp config/gtk-4.0/settings.ini ~/.config/gtk-4.0/settings.ini
 
 # Wallpaper + screenshot directories
 mkdir -p ~/Pictures/Wallpapers ~/Pictures/Screenshots
-
-# SSH agent (systemd socket + GUI passphrase prompt)
-systemctl --user enable --now ssh-agent.socket
-systemctl --user disable gcr-ssh-agent.socket 2>/dev/null || true
-
-# Disable swaync if installed (conflicts with noctalia notifications)
-systemctl --user mask swaync 2>/dev/null || true
 ```
 
 Edit the `output` section at the top of `config.kdl` for your monitors.
 
-### 3. Install session files
+### 3. Set up services
+
+```bash
+# SSH agent (systemd socket + GUI passphrase prompt)
+systemctl --user enable --now ssh-agent.socket
+systemctl --user disable gcr-ssh-agent.socket 2>/dev/null || true
+
+# Disable conflicting notification daemons
+systemctl --user mask swaync 2>/dev/null || true
+systemctl --user mask dunst 2>/dev/null || true
+
+# Disable conflicting SSH agents (if present)
+systemctl --user disable gnome-keyring-ssh.service 2>/dev/null || true
+systemctl --user disable kwalletd5.service 2>/dev/null || true
+systemctl --user disable kwalletd6.service 2>/dev/null || true
+
+# Remove conflicting portal backends
+sudo pacman -Rns xdg-desktop-portal-hyprland xdg-desktop-portal-wlr 2>/dev/null || true
+
+# XDG portal config for niri
+mkdir -p ~/.config/xdg-desktop-portal
+cat > ~/.config/xdg-desktop-portal/niri-portals.conf <<'EOF'
+[preferred]
+default=gnome
+org.freedesktop.impl.portal.Access=gnome
+org.freedesktop.impl.portal.FileChooser=gnome
+org.freedesktop.impl.portal.Screenshot=gnome
+org.freedesktop.impl.portal.Screencast=gnome
+EOF
+
+# Set fish as default shell
+chsh -s /usr/bin/fish
+```
+
+### 4. Install session files
 
 ```bash
 cp sessions/start-niri.sh ~/.local/bin/start-niri.sh
 chmod +x ~/.local/bin/start-niri.sh
 
 # SDDM session entry (requires sudo)
-sudo cp sessions/niri.desktop /usr/share/wayland-sessions/niri.desktop
+sed "s|/home/brown|$HOME|g" sessions/niri.desktop | sudo tee /usr/share/wayland-sessions/niri.desktop >/dev/null
 ```
 
-Update the `Exec=` path in `niri.desktop` if your home directory differs.
-
-### 4. Validate
+### 5. Validate
 
 ```bash
 niri validate
@@ -115,6 +159,8 @@ niri validate
 | Power/session menu | noctalia-shell |
 | Lock screen | noctalia-shell |
 | X11 compat | xwayland-satellite |
+| SSH agent | systemd ssh-agent.socket + lxqt-openssh-askpass |
+| Login theme | catppuccin-sddm-theme-mocha |
 
 ## Keybindings
 
@@ -176,6 +222,7 @@ niri validate
 | `Super+Comma` | Settings panel |
 | `Super+A` | Control center |
 | `Super+Ctrl+A` | Calendar |
+| `Super+Ctrl+I` | Network panel |
 | `Super+N` | Notification history |
 | `Super+Shift+N` | Toggle Do Not Disturb |
 | `Super+Shift+B` | Toggle bar |
@@ -271,6 +318,7 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
 
 ```
 ├── README.md
+├── CLAUDE.md
 ├── install.sh
 ├── cleanup.sh
 ├── config/
@@ -295,13 +343,19 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
 
 ```bash
 # Remove configs
-rm -rf ~/.config/niri
+rm -rf ~/.config/niri ~/.config/noctalia ~/.config/xdg-desktop-portal/niri-portals.conf
 
 # Remove session files
 rm ~/.local/bin/start-niri.sh
 sudo rm /usr/share/wayland-sessions/niri.desktop
 
+# Restore default shell
+chsh -s /bin/bash
+
+# Disable SSH agent
+systemctl --user disable ssh-agent.socket
+
 # Uninstall packages (optional)
 sudo pacman -Rns niri xwayland-satellite xdg-desktop-portal-gnome lxqt-openssh-askpass
-paru -Rns noctalia-shell zen-browser-bin
+paru -Rns noctalia-shell catppuccin-sddm-theme-mocha zen-browser-bin
 ```
