@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Update Antigravity
+Comment=Check and install updates for Google Antigravity IDE
+Exec=/home/brown/.local/bin/update-antigravity
+Icon=antigravity
+Terminal=true
+Type=Application
+Categories=Development;Utility;

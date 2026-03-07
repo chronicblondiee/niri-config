@@ -630,6 +630,40 @@ else
 fi
 
 # ─────────────────────────────────────────────
+# Step 4b: Install Google Antigravity
+# ─────────────────────────────────────────────
+
+echo
+info "Step 4b: Install Google Antigravity IDE"
+
+if confirm "Install Google Antigravity IDE and custom updater?" "y"; then
+    info "Running Antigravity install script..."
+    curl -sSL https://raw.githubusercontent.com/BOTOOM/google-antigravity-bin-arch/main/install_antigravity | bash
+    
+    info "Installing custom icon and updater script..."
+    mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/512x512/apps"
+    
+    # Updater script
+    cp "$SCRIPT_DIR/config/antigravity/update-antigravity" "$HOME/.local/bin/update-antigravity"
+    chmod +x "$HOME/.local/bin/update-antigravity"
+    
+    # Desktop entry
+    cp "$SCRIPT_DIR/config/antigravity/update-antigravity.desktop" "$HOME/.local/share/applications/"
+    
+    # Custom Icon
+    cp "$SCRIPT_DIR/config/antigravity/antigravity.png" "$HOME/.local/share/icons/hicolor/512x512/apps/antigravity.png"
+    
+    # Update icon cache
+    if command -v xdg-icon-resource &>/dev/null; then
+        xdg-icon-resource forceupdate --theme hicolor
+    fi
+    
+    ok "Google Antigravity IDE and custom updater installed!"
+else
+    warn "Skipping Google Antigravity installation"
+fi
+
+# ─────────────────────────────────────────────
 # Step 5: Validate
 # ─────────────────────────────────────────────
 
@@ -667,6 +701,7 @@ echo "  - SSH agent:      systemd ssh-agent.socket + lxqt-openssh-askpass"
 echo "  - XDG portal:    $PORTAL_CONF_DIR/niri-portals.conf"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:    /usr/share/wayland-sessions/niri.desktop"
+echo "  - Antigravity IDE: Installed with custom updater script"
 echo
 info "Noctalia-shell provides:"
 echo "  - Status bar (top, with workspaces, clock, tray, etc.)"

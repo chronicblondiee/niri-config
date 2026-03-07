@@ -1,0 +1,9 @@
+#!/bin/bash
+echo "Upgrading Google Antigravity IDE..."
+echo "Running: curl -sSL https://raw.githubusercontent.com/BOTOOM/google-antigravity-bin-arch/main/install_antigravity | bash"
+echo "----------------------------------------------------------------------"
+curl -sSL https://raw.githubusercontent.com/BOTOOM/google-antigravity-bin-arch/main/install_antigravity | bash
+echo "----------------------------------------------------------------------"
+echo "Upgrade finished."
+echo "Press Enter to close this window..."
+read
