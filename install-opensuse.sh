@@ -520,6 +520,43 @@ fi
 echo
 info "Step 3j: Enable SSH agent (systemd socket + lxqt-openssh-askpass)"
 
+# Unlike Arch, openSUSE's openssh package ships no ssh-agent.socket/service
+# user units — install the upstream Arch unit files ourselves if missing
+SSH_AGENT_UNIT_DIR="$HOME/.config/systemd/user"
+if [[ ! -f "$SSH_AGENT_UNIT_DIR/ssh-agent.socket" ]]; then
+    mkdir -p "$SSH_AGENT_UNIT_DIR"
+    cat > "$SSH_AGENT_UNIT_DIR/ssh-agent.socket" <<'EOF'
+[Unit]
+ConditionEnvironment=!SSH_AGENT_PID
+Description=Socket for the OpenSSH key agent
+Documentation=man:ssh-agent(1)
+
+[Socket]
+ListenStream=%t/ssh-agent.socket
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target
+EOF
+    cat > "$SSH_AGENT_UNIT_DIR/ssh-agent.service" <<'EOF'
+[Unit]
+ConditionEnvironment=!SSH_AGENT_PID
+Description=OpenSSH key agent
+Documentation=man:ssh-agent(1) man:ssh-add(1) man:ssh(1)
+Requires=ssh-agent.socket
+
+[Service]
+ExecStart=/usr/bin/ssh-agent -D
+SuccessExitStatus=2
+Type=simple
+
+[Install]
+Also=ssh-agent.socket
+EOF
+    systemctl --user daemon-reload
+    ok "Installed ssh-agent.socket/service user units to $SSH_AGENT_UNIT_DIR"
+fi
+
 if systemctl --user is-enabled ssh-agent.socket &>/dev/null 2>&1; then
     ok "ssh-agent.socket already enabled"
 else
