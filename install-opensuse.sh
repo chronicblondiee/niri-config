@@ -799,6 +799,29 @@ if [[ -n "$SDDM_PKG" ]]; then
             warn "Skipping SDDM theme configuration"
         fi
     fi
+
+    # openSUSE's minimal-X pattern already logged in once with icewm (or
+    # whatever xsession it preselects) before this installer ever ran, so
+    # sddm's ~sddm/state.conf remembers that as the [Last] session and keeps
+    # preselecting/relaunching it on every reboot even after niri.desktop is
+    # installed — the user has to notice and manually switch the session in
+    # the login dropdown, or they land right back in the old desktop. Force
+    # niri as the remembered session so a plain login boots straight into it.
+    SDDM_STATE_CONF="/var/lib/sddm/state.conf"
+    if sudo test -f "$SDDM_STATE_CONF" && sudo grep -q "^Session=niri.desktop$" "$SDDM_STATE_CONF" 2>/dev/null; then
+        ok "SDDM default session already set to niri"
+    else
+        if confirm "Set niri as the default SDDM session (fixes reboot landing back on the distro's default desktop)?" "y"; then
+            if sudo test -f "$SDDM_STATE_CONF"; then
+                sudo cp "$SDDM_STATE_CONF" "${SDDM_STATE_CONF}.bak.$(date +%Y%m%d%H%M%S)"
+            fi
+            printf '[Last]\nSession=niri.desktop\nUser=%s\n' "$USER" | sudo tee "$SDDM_STATE_CONF" >/dev/null
+            sudo chown sddm:sddm "$SDDM_STATE_CONF" 2>/dev/null || true
+            ok "SDDM default session set to niri"
+        else
+            warn "Skipping default session — you'll need to pick 'Niri' manually at the login screen"
+        fi
+    fi
 fi
 
 # ─────────────────────────────────────────────
@@ -840,6 +863,7 @@ echo "  - SSH agent:      systemd ssh-agent.socket + lxqt-openssh-askpass"
 echo "  - XDG portal:     $PORTAL_CONF_DIR/niri-portals.conf"
 echo "  - Session script: $HOME/.local/bin/start-niri.sh"
 echo "  - SDDM entry:     /usr/share/wayland-sessions/niri.desktop"
+echo "  - SDDM default:   niri.desktop preselected (/var/lib/sddm/state.conf)"
 echo
 warn "A few keybinds were ported as best-effort guesses (not verified against a"
 warn "running instance) — check these with 'noctalia msg --help' after logging in:"
@@ -847,7 +871,9 @@ echo "  - Mod+N (notification history), Mod+Ctrl+I (network panel),"
 echo "    Mod+Ctrl+A (calendar), Mod+Shift+Space (emoji picker)"
 echo
 info "Next steps:"
-echo "  1. Log out and select 'Niri' from the SDDM session picker"
+echo "  1. Reboot — SDDM should now boot straight into Niri. If it still lands"
+echo "     on the old desktop, pick 'Niri' from the session picker manually once"
+echo "     (bottom-left icon on the login screen) and it'll stick from then on."
 echo "  2. Add wallpapers to $WALLPAPER_DIR/"
 echo "  3. To customize monitor settings, edit the output section in:"
 echo "     $NIRI_CONFIG_DIR/config.kdl (run 'niri msg outputs' for details)"

@@ -31,12 +31,16 @@ The installer is interactive and idempotent — every step asks for confirmation
 9. **XDG portals** — configures `xdg-desktop-portal-gnome`, removes conflicting backends
 10. **Default shell** — sets fish via `chsh` (adding it to `/etc/shells` if needed)
 11. **Session files** — installs `start-niri.sh`, SDDM session entry
-12. **SDDM** — installs/enables SDDM, sets `graphical.target`, configures the Catppuccin Mocha theme
+12. **SDDM** — installs/enables SDDM, sets `graphical.target`, configures the Catppuccin Mocha theme, and forces `niri.desktop` as SDDM's remembered/preselected session (openSUSE's minimal-X install already logged in once with IceWM before you ran this, so SDDM would otherwise keep defaulting back to it)
 13. **Validation** — runs `niri validate`
 
-After installing, log out and select **Niri** from the SDDM session picker.
+After installing, reboot — SDDM should now boot straight into Niri. If it still lands on the old desktop, pick **Niri** from the session picker manually once (bottom-left icon on the login screen) and it'll stick from then on.
 
 A few Noctalia keybindings in `config.kdl` are best-effort translations from v4. The emoji-picker prefix (`/emo`) is now confirmed correct — it matches `shell.launcher.providers.emoji.prefix` in the real v5 settings schema (checked via `noctalia config export full`). The Control Center tab-jump tokens (notification history, network panel, calendar) are still unverified, since `noctalia msg` requires a running graphical session to query — check them with `noctalia msg --help` after logging in and adjust if needed.
+
+### Post-install cleanup
+
+Once you've confirmed Niri boots and logs in correctly, run `./cleanup-opensuse-default-desktop.sh` to remove openSUSE's default minimal-X fallback desktop (IceWM and its packages) plus any now-orphaned dependencies. It deliberately leaves `xorg-x11-server`/`xinit` alone, since SDDM's login greeter still runs under X11 by default on this system — removing them would break the login screen itself, not just the old desktop.
 
 ## Legacy: Arch Linux
 
@@ -366,6 +370,7 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
 ├── README.md
 ├── CLAUDE.md
 ├── install-opensuse.sh
+├── cleanup-opensuse-default-desktop.sh
 ├── install.sh       (legacy, Arch)
 ├── cleanup.sh       (legacy, Arch)
 ├── config/
