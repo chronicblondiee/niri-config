@@ -19,7 +19,7 @@ input {
 
     keyboard {
         xkb {
-            layout "us"
+            layout "ie"
         }
     }
 }
@@ -56,7 +56,7 @@ screenshot-path "~/Pictures/Screenshots/screenshot-%Y-%m-%d-%H-%M-%S.png"
 
 // ----- Spawn at Startup -----
 spawn-at-startup "xwayland-satellite"
-spawn-at-startup "qs" "-c" "noctalia-shell"
+spawn-at-startup "noctalia"
 spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
 spawn-at-startup "sh" "-c" "/usr/lib/polkit-kde-authentication-agent-1"
 spawn-at-startup "sh" "-c" "sleep 2 && SSH_ASKPASS=/usr/bin/lxqt-openssh-askpass SSH_ASKPASS_REQUIRE=force ssh-add < /dev/null"
@@ -115,10 +115,11 @@ binds {
     Mod+Return hotkey-overlay-title="Open Terminal" { spawn "kitty"; }
     Mod+B hotkey-overlay-title="Open Browser" { spawn "zen-browser"; }
     Mod+E hotkey-overlay-title="Open File Manager" { spawn "nautilus" "--new-window"; }
-    Mod+Space hotkey-overlay-title="App Launcher" { spawn "sh" "-c" "qs -c noctalia-shell ipc call launcher toggle"; }
-    Mod+Ctrl+Return hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call launcher toggle"; }
-    Mod+Shift+Space hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call launcher emoji"; }
-    Mod+V hotkey-overlay-title="Clipboard" { spawn "sh" "-c" "qs -c noctalia-shell ipc call launcher clipboard"; }
+    Mod+Space hotkey-overlay-title="App Launcher" { spawn "sh" "-c" "noctalia msg panel-toggle launcher"; }
+    Mod+Ctrl+Return hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg panel-toggle launcher"; }
+    // v5 has no dedicated emoji verb; /emo triggers the emoji provider inside the launcher (unverified on-device)
+    Mod+Shift+Space hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg panel-toggle launcher /emo"; }
+    Mod+V hotkey-overlay-title="Clipboard" { spawn "sh" "-c" "noctalia msg panel-toggle clipboard"; }
 
     // ===== Window Management =====
     Mod+Q hotkey-overlay-title="Close Window" { close-window; }
@@ -232,34 +233,37 @@ binds {
     Mod+Alt+S hotkey-overlay-title="Screenshot Window" { screenshot-window; }
 
     // ===== Noctalia Shell =====
-    Super+Alt+L hotkey-overlay-title="Lock Screen" { spawn "sh" "-c" "qs -c noctalia-shell ipc call lockScreen lock"; }
-    Mod+Ctrl+Q hotkey-overlay-title="Power Menu" { spawn "sh" "-c" "qs -c noctalia-shell ipc call sessionMenu toggle"; }
-    Mod+Comma hotkey-overlay-title="Settings" { spawn "sh" "-c" "qs -c noctalia-shell ipc call settings toggle"; }
-    Mod+A hotkey-overlay-title="Control Center" { spawn "sh" "-c" "qs -c noctalia-shell ipc call controlCenter toggle"; }
-    Mod+N hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call notifications toggleHistory"; }
-    Mod+Shift+N hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call notifications toggleDND"; }
-    Mod+Shift+B hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call bar toggle"; }
-    Mod+D hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call dock toggle"; }
-    Mod+Shift+W hotkey-overlay-title="Random Wallpaper" { spawn "sh" "-c" "qs -c noctalia-shell ipc call wallpaper random"; }
-    Mod+Ctrl+W hotkey-overlay-title="Wallpaper Picker" { spawn "sh" "-c" "qs -c noctalia-shell ipc call wallpaper toggle"; }
-    Mod+Ctrl+D hotkey-overlay-title="Toggle Dark Mode" { spawn "sh" "-c" "qs -c noctalia-shell ipc call darkMode toggle"; }
-    Mod+Ctrl+I hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call network togglePanel"; }
-    Mod+Ctrl+N hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call nightLight toggle"; }
-    Mod+Ctrl+A hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call calendar toggle"; }
-    Mod+Shift+M hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call media toggle"; }
+    Super+Alt+L hotkey-overlay-title="Lock Screen" { spawn "sh" "-c" "noctalia msg session lock"; }
+    Mod+Ctrl+Q hotkey-overlay-title="Power Menu" { spawn "sh" "-c" "noctalia msg panel-toggle session"; }
+    Mod+Comma hotkey-overlay-title="Settings" { spawn "sh" "-c" "noctalia msg settings-toggle"; }
+    Mod+A hotkey-overlay-title="Control Center" { spawn "sh" "-c" "noctalia msg panel-toggle control-center"; }
+    // v5 folds notification history into the Control Center Notifications tab (tab id unverified on-device)
+    Mod+N hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg panel-toggle control-center notifications"; }
+    Mod+Shift+N hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg notification-dnd-toggle"; }
+    Mod+Shift+B hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg bar-toggle"; }
+    Mod+D hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg dock-toggle"; }
+    Mod+Shift+W hotkey-overlay-title="Random Wallpaper" { spawn "sh" "-c" "noctalia msg wallpaper-random"; }
+    Mod+Ctrl+W hotkey-overlay-title="Wallpaper Picker" { spawn "sh" "-c" "noctalia msg panel-toggle wallpaper"; }
+    Mod+Ctrl+D hotkey-overlay-title="Toggle Dark Mode" { spawn "sh" "-c" "noctalia msg theme-mode-toggle"; }
+    // v5 has no standalone network panel; routed to the Control Center Network tab (tab id unverified on-device)
+    Mod+Ctrl+I hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg panel-toggle control-center network"; }
+    Mod+Ctrl+N hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg nightlight-toggle"; }
+    // v5 has no standalone calendar panel; routed to the Control Center Calendar tab (tab id unverified on-device)
+    Mod+Ctrl+A hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg panel-toggle control-center calendar"; }
+    Mod+Shift+M hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg media toggle"; }
     // Mod+F1 reserved for keybind-cheatsheet (enable noctalia plugin first)
 
     // ===== Media Keys (hidden from overlay) =====
-    XF86AudioRaiseVolume allow-when-locked=true hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call volume increase"; }
-    XF86AudioLowerVolume allow-when-locked=true hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call volume decrease"; }
-    XF86AudioMute allow-when-locked=true hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call volume muteOutput"; }
-    XF86AudioMicMute allow-when-locked=true hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call volume muteInput"; }
-    XF86MonBrightnessUp hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call brightness increase"; }
-    XF86MonBrightnessDown hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call brightness decrease"; }
-    XF86AudioPlay hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call media playPause"; }
-    XF86AudioNext hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call media next"; }
-    XF86AudioPrev hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call media previous"; }
-    XF86AudioStop hotkey-overlay-title=null { spawn "sh" "-c" "qs -c noctalia-shell ipc call media stop"; }
+    XF86AudioRaiseVolume allow-when-locked=true hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg volume-up"; }
+    XF86AudioLowerVolume allow-when-locked=true hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg volume-down"; }
+    XF86AudioMute allow-when-locked=true hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg volume-mute"; }
+    XF86AudioMicMute allow-when-locked=true hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg mic-mute"; }
+    XF86MonBrightnessUp hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg brightness-up"; }
+    XF86MonBrightnessDown hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg brightness-down"; }
+    XF86AudioPlay hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg media toggle"; }
+    XF86AudioNext hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg media next"; }
+    XF86AudioPrev hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg media previous"; }
+    XF86AudioStop hotkey-overlay-title=null { spawn "sh" "-c" "noctalia msg media stop"; }
 
     // ===== System =====
     Mod+Slash hotkey-overlay-title="Show Hotkeys" { show-hotkey-overlay; }

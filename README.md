@@ -1,81 +1,98 @@
 # Niri Standalone Configuration
 
-Standalone [niri](https://github.com/YaLTeR/niri) scrollable-tiling Wayland compositor configuration for Arch Linux.
+Standalone [niri](https://github.com/YaLTeR/niri) scrollable-tiling Wayland compositor configuration, primary target **openSUSE Tumbleweed/Slowroll** with [Noctalia](https://docs.noctalia.dev/) v5 as the desktop shell.
+
+> **Legacy Arch support**: `install.sh`/`cleanup.sh` target Arch Linux + Noctalia **v4** (Quickshell-based) and are kept for reference only — they are not maintained against the current `config/` files, which use Noctalia v5's TOML config and IPC syntax. See [Legacy: Arch Linux](#legacy-arch-linux) below.
 
 ## Prerequisites
 
-- Arch Linux or derivative (CachyOS, EndeavourOS, etc.)
-- SDDM display manager
-- An AUR helper (`paru` or `yay`) for noctalia-shell
+- openSUSE Tumbleweed or Slowroll (Noctalia v5 needs `sdbus-c++` >= 2.x, not available on Leap)
+- SDDM display manager (installed by the installer if missing)
+- Flatpak + Flathub, for zen-browser (installed by the installer if missing)
 
 ## Quick Install
 
 ```bash
 git clone git@github.com:chronicblondiee/niri-config.git
 cd niri-config
-./install.sh
+./install-opensuse.sh
 ```
 
 The installer is interactive and idempotent — every step asks for confirmation and creates `.bak` backups before modifying files. It handles:
 
-1. **Conflict detection** — finds existing compositors (Hyprland, Sway) and offers to run `cleanup.sh`
-2. **Broken symlink cleanup** — scans `~/.config` for dead links from old setups
-3. **Package installation** — official repos via `pacman`, AUR via `paru`/`yay`
-4. **Config deployment** — niri, noctalia-shell, kitty, fish, GTK dark theme
+1. **Broken symlink cleanup** — scans `~/.config` for dead links from old setups
+2. **Repository setup** — adds the `home:neifua:Noctalia` OBS repo (and `KDE:Frameworks` as a fallback for `polkit-kde-agent-6`)
+3. **Package installation** — official oss repo via `zypper`, Noctalia via OBS, zen-browser via Flatpak/Flathub, Catppuccin SDDM theme via git clone
+4. **Config deployment** — niri, Noctalia v5, kitty, fish, GTK dark theme
 5. **Directory setup** — `~/Pictures/Wallpapers/` and `~/Pictures/Screenshots/`
-6. **SSH agent** — enables `ssh-agent.socket`, disables conflicting agents (gnome-keyring, kwallet, gcr)
-7. **Service cleanup** — masks conflicting notification daemons (swaync, dunst, mako)
-8. **XDG portals** — configures `xdg-desktop-portal-gnome`, removes conflicting backends
-9. **Default shell** — sets fish via `chsh`
-10. **Session files** — installs `start-niri.sh`, SDDM session entry, Catppuccin Mocha SDDM theme
-11. **Validation** — runs `niri validate`
+6. **Keyboard layout** — sets console + X11/Wayland layout to `ie` (Ireland) via `localectl`
+7. **SSH agent** — enables `ssh-agent.socket`, disables conflicting agents (gnome-keyring, kwallet, gcr)
+8. **Service cleanup** — masks conflicting notification daemons (swaync, dunst, mako)
+9. **XDG portals** — configures `xdg-desktop-portal-gnome`, removes conflicting backends
+10. **Default shell** — sets fish via `chsh` (adding it to `/etc/shells` if needed)
+11. **Session files** — installs `start-niri.sh`, SDDM session entry
+12. **SDDM** — installs/enables SDDM, sets `graphical.target`, configures the Catppuccin Mocha theme
+13. **Validation** — runs `niri validate`
 
 After installing, log out and select **Niri** from the SDDM session picker.
 
-## Cleanup
+A few Noctalia keybindings in `config.kdl` (notification history, network panel, calendar, emoji picker) are best-effort translations from v4 that haven't been verified against a running v5 instance — check them with `noctalia msg --help` after logging in and adjust if needed.
 
-If migrating from Hyprland, Sway, or ML4W, run the cleanup script to remove conflicting packages, services, and configs:
+## Legacy: Arch Linux
+
+`install.sh` + `cleanup.sh` still work for Arch Linux + Noctalia v4 as of when they were last touched, but they are **not** kept in sync with `config/niri/config.kdl` or `config/noctalia/config.toml`, which now target openSUSE + Noctalia v5. If you need the Arch/v4 setup, check out an earlier commit rather than relying on the current `config/` tree with these scripts.
 
 ```bash
-./cleanup.sh
+./cleanup.sh   # remove Hyprland/Sway/ML4W leftovers (Arch only)
+./install.sh   # Arch/pacman/AUR installer (Noctalia v4, unmaintained)
 ```
-
-This handles:
-- Hyprland ecosystem packages (hyprland, hypridle, hyprlock, hyprpaper, etc.)
-- Old standalone tools replaced by noctalia-shell (waybar, swaync, dunst, swww, rofi, etc.)
-- ML4W dotfiles packages
-- Conflicting systemd services (notification daemons, SSH agents, wallpaper daemons)
-- Leftover config directories
-- Orphaned package dependencies
 
 ## Manual Install
 
-### 1. Install packages
+### 1. Add repositories and install packages
 
 ```bash
-# Official repos
-sudo pacman -S --needed niri xwayland-satellite xdg-desktop-portal-gnome \
-    qt6-svg qt6-declarative kitty fish nautilus wl-clipboard cliphist \
-    polkit-kde-agent lxqt-openssh-askpass openssh
+# Noctalia v5 (OBS repo)
+sudo zypper addrepo --refresh --name noctalia-v5 \
+    https://download.opensuse.org/repositories/home:neifua:Noctalia/openSUSE_Tumbleweed/home:neifua:Noctalia.repo
+sudo zypper --gpg-auto-import-keys refresh
 
-# AUR (noctalia-shell provides bar, notifications, wallpaper, lock screen)
-paru -S noctalia-shell catppuccin-sddm-theme-mocha zen-browser-bin
+# Official oss repo
+sudo zypper install niri xwayland-satellite xdg-desktop-portal-gnome \
+    kitty fish nautilus wl-clipboard cliphist lxqt-openssh-askpass openssh \
+    sddm noctalia
+
+# polkit-kde-agent-6 (add KDE:Frameworks only if the bare install fails)
+sudo zypper install polkit-kde-agent-6 || {
+    sudo zypper addrepo --refresh https://download.opensuse.org/repositories/KDE:Frameworks/openSUSE_Tumbleweed/KDE:Frameworks.repo
+    sudo zypper --gpg-auto-import-keys refresh
+    sudo zypper install polkit-kde-agent-6
+}
+
+# zen-browser (Flatpak — no native package)
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install flathub app.zen_browser.zen
+
+# Catppuccin SDDM theme (no OBS package — install from source)
+git clone --depth 1 https://github.com/catppuccin/sddm.git /tmp/catppuccin-sddm
+sudo cp -r /tmp/catppuccin-sddm/src/catppuccin-mocha-mauve /usr/share/sddm/themes/
 ```
 
-| Package | Purpose |
-|---------|---------|
-| `niri` | Scrollable-tiling Wayland compositor |
-| `noctalia-shell` | Desktop shell (bar, notifications, wallpaper, lock screen) |
-| `xwayland-satellite` | X11 app compatibility for niri |
-| `xdg-desktop-portal-gnome` | Screen sharing, file dialogs |
-| `kitty` | Terminal emulator |
-| `fish` | Fish shell |
-| `nautilus` | File manager |
-| `wl-clipboard` + `cliphist` | Clipboard history |
-| `polkit-kde-agent` | Polkit authentication prompts |
-| `lxqt-openssh-askpass` | SSH key passphrase GUI prompt |
-| `catppuccin-sddm-theme-mocha` | SDDM login theme (AUR) |
-| `zen-browser-bin` | Web browser (AUR) |
+| Package | Purpose | Source |
+|---------|---------|--------|
+| `niri` | Scrollable-tiling Wayland compositor | oss repo |
+| `noctalia` | Desktop shell v5 (bar, notifications, wallpaper, lock screen) | OBS `home:neifua:Noctalia` |
+| `xwayland-satellite` | X11 app compatibility for niri | oss repo |
+| `xdg-desktop-portal-gnome` | Screen sharing, file dialogs | oss repo |
+| `kitty` | Terminal emulator | oss repo |
+| `fish` | Fish shell | oss repo |
+| `nautilus` | File manager | oss repo |
+| `wl-clipboard` + `cliphist` | Clipboard history | oss repo |
+| `polkit-kde-agent-6` | Polkit authentication prompts | oss repo, fallback `KDE:Frameworks` |
+| `lxqt-openssh-askpass` | SSH key passphrase GUI prompt | oss repo |
+| `sddm` / `sddm-qt6` | Display manager | oss repo |
+| Catppuccin SDDM theme | Login theme | manual, [catppuccin/sddm](https://github.com/catppuccin/sddm) |
+| `app.zen_browser.zen` | Web browser | Flathub |
 
 ### 2. Install configs
 
@@ -84,9 +101,9 @@ paru -S noctalia-shell catppuccin-sddm-theme-mocha zen-browser-bin
 mkdir -p ~/.config/niri
 cp config/niri/config.kdl ~/.config/niri/config.kdl
 
-# Noctalia shell config (replace __HOME__ with your home directory)
+# Noctalia v5 config (replace __HOME__ with your home directory)
 mkdir -p ~/.config/noctalia
-sed "s|__HOME__|$HOME|g" config/noctalia/settings.json > ~/.config/noctalia/settings.json
+sed "s|__HOME__|$HOME|g" config/noctalia/config.toml > ~/.config/noctalia/config.toml
 
 # Kitty terminal (Catppuccin Mocha theme)
 mkdir -p ~/.config/kitty
@@ -110,6 +127,10 @@ Edit the `output` section at the top of `config.kdl` for your monitors.
 ### 3. Set up services
 
 ```bash
+# Keyboard layout (console + X11/Wayland)
+sudo localectl set-x11-keymap ie
+sudo localectl set-keymap ie
+
 # SSH agent (systemd socket + GUI passphrase prompt)
 systemctl --user enable --now ssh-agent.socket
 systemctl --user disable gcr-ssh-agent.socket 2>/dev/null || true
@@ -124,7 +145,7 @@ systemctl --user disable kwalletd5.service 2>/dev/null || true
 systemctl --user disable kwalletd6.service 2>/dev/null || true
 
 # Remove conflicting portal backends
-sudo pacman -Rns xdg-desktop-portal-hyprland xdg-desktop-portal-wlr 2>/dev/null || true
+sudo zypper remove xdg-desktop-portal-hyprland xdg-desktop-portal-wlr 2>/dev/null || true
 
 # XDG portal config for niri
 mkdir -p ~/.config/xdg-desktop-portal
@@ -138,6 +159,7 @@ org.freedesktop.impl.portal.Screencast=gnome
 EOF
 
 # Set fish as default shell
+grep -qx /usr/bin/fish /etc/shells || echo /usr/bin/fish | sudo tee -a /etc/shells
 chsh -s /usr/bin/fish
 ```
 
@@ -148,16 +170,16 @@ mkdir -p ~/.local/bin
 cp sessions/start-niri.sh ~/.local/bin/start-niri.sh
 chmod +x ~/.local/bin/start-niri.sh
 
-# SDDM session entry (requires sudo)
+# SDDM session entry (requires sudo) — overrides the niri package's own entry
 sed "s|__HOME__|$HOME|g" sessions/niri.desktop | sudo tee /usr/share/wayland-sessions/niri.desktop >/dev/null
 
-# SDDM Catppuccin theme (requires sudo)
-# Appends [Theme] section if missing, or updates existing Current= line
-if grep -q '^\[Theme\]' /etc/sddm.conf 2>/dev/null; then
-    sudo sed -i '/^\[Theme\]/,/^\[/{s/^Current=.*/Current=catppuccin-mocha-mauve/}' /etc/sddm.conf
-else
-    printf '\n[Theme]\nCurrent=catppuccin-mocha-mauve\n' | sudo tee -a /etc/sddm.conf >/dev/null
-fi
+# Enable SDDM
+sudo systemctl enable sddm.service
+sudo systemctl set-default graphical.target
+
+# SDDM Catppuccin theme (requires sudo) — openSUSE uses conf.d drop-ins
+sudo mkdir -p /etc/sddm.conf.d
+printf '[Theme]\nCurrent=catppuccin-mocha-mauve\n' | sudo tee /etc/sddm.conf.d/10-theme.conf >/dev/null
 ```
 
 ### 5. Validate
@@ -171,17 +193,17 @@ niri validate
 | Component | Tool |
 |-----------|------|
 | Compositor | niri |
-| Bar | noctalia-shell |
-| App launcher | noctalia-shell |
-| Notifications | noctalia-shell |
-| Wallpaper | noctalia-shell |
-| Clipboard | noctalia-shell (cliphist backend) |
+| Bar | Noctalia v5 |
+| App launcher | Noctalia v5 |
+| Notifications | Noctalia v5 |
+| Wallpaper | Noctalia v5 |
+| Clipboard | Noctalia v5 (native clipboard history) |
 | Terminal | kitty |
-| Power/session menu | noctalia-shell |
-| Lock screen | noctalia-shell |
+| Power/session menu | Noctalia v5 |
+| Lock screen | Noctalia v5 |
 | X11 compat | xwayland-satellite |
 | SSH agent | systemd ssh-agent.socket + lxqt-openssh-askpass |
-| Login theme | catppuccin-sddm-theme-mocha |
+| Login theme | Catppuccin Mocha (manual install, no OBS package) |
 
 ## Keybindings
 
@@ -242,9 +264,9 @@ niri validate
 |---------|--------|
 | `Super+Comma` | Settings panel |
 | `Super+A` | Control center |
-| `Super+Ctrl+A` | Calendar |
-| `Super+Ctrl+I` | Network panel |
-| `Super+N` | Notification history |
+| `Super+Ctrl+A` | Calendar (Control Center tab)¹ |
+| `Super+Ctrl+I` | Network panel (Control Center tab)¹ |
+| `Super+N` | Notification history (Control Center tab)¹ |
 | `Super+Shift+N` | Toggle Do Not Disturb |
 | `Super+Shift+B` | Toggle bar |
 | `Super+D` | Toggle dock |
@@ -254,6 +276,8 @@ niri validate
 | `Super+Ctrl+N` | Toggle night light |
 | `Super+Shift+M` | Media panel |
 | Media keys | Volume, brightness, player controls (with OSD) |
+
+¹ Noctalia v5 moved these into Control Center tabs instead of standalone panels (v4 behavior). The exact tab-jump IPC token wasn't verified against a running instance — check with `noctalia msg --help` and adjust `config.kdl` if the binding doesn't land on the right tab. Calendar and weather are also now separate features/tabs in v5, no longer a combined widget.
 
 ### Utilities
 
@@ -340,13 +364,14 @@ Position values are in physical pixels. Use `niri msg outputs` to check logical 
 ```
 ├── README.md
 ├── CLAUDE.md
-├── install.sh
-├── cleanup.sh
+├── install-opensuse.sh
+├── install.sh       (legacy, Arch)
+├── cleanup.sh       (legacy, Arch)
 ├── config/
 │   ├── niri/
 │   │   └── config.kdl
 │   ├── noctalia/
-│   │   └── settings.json
+│   │   └── config.toml
 │   ├── kitty/
 │   │   └── kitty.conf
 │   ├── fish/
@@ -381,6 +406,8 @@ chsh -s /bin/bash
 systemctl --user disable ssh-agent.socket
 
 # Uninstall packages (optional)
-sudo pacman -Rns niri xwayland-satellite xdg-desktop-portal-gnome lxqt-openssh-askpass
-paru -Rns noctalia-shell catppuccin-sddm-theme-mocha zen-browser-bin
+sudo zypper remove niri xwayland-satellite xdg-desktop-portal-gnome lxqt-openssh-askpass noctalia polkit-kde-agent-6
+flatpak uninstall app.zen_browser.zen
+sudo rm -rf /usr/share/sddm/themes/catppuccin-mocha-mauve /etc/sddm.conf.d/10-theme.conf
+sudo zypper removerepo noctalia-v5
 ```

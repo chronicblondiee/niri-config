@@ -2,14 +2,18 @@
 
 ## Project
 
-Standalone niri compositor configuration for Arch Linux. The installer (`install.sh`) is interactive, idempotent, and creates backups before modifying files. Handles both clean installs and systems with existing compositor setups (Hyprland, Sway, ML4W).
+Standalone niri compositor configuration, primary target **openSUSE Tumbleweed/Slowroll** (installer `install-opensuse.sh`, zypper + OBS repos). Uses **Noctalia v5** (native C++/OpenGL ES shell, no Qt/GTK/Quickshell dependency, TOML config, `noctalia msg <verb>` IPC).
+
+`install.sh`/`cleanup.sh` are **legacy** — they target Arch Linux (`pacman`/AUR) and Noctalia **v4** (Quickshell/QML, JSON config, `qs ipc call <target> <action>` IPC). They're kept for reference only and are not maintained against the current `config/` files, which have moved to v5/openSUSE syntax.
+
+The current installer (`install-opensuse.sh`) is interactive, idempotent, and creates backups before modifying files.
 
 ## Key Files
 
-- `install.sh` — Main installer script (bash, interactive)
-- `cleanup.sh` — Removes old Hyprland/ML4W/Sway dependencies, services, and configs
-- `config/niri/config.kdl` — Niri compositor config (KDL format)
-- `config/noctalia/settings.json` — Noctalia-shell settings (`__HOME__` placeholder replaced at install time)
+- `install-opensuse.sh` — Main installer script (bash, interactive, zypper-based)
+- `install.sh`, `cleanup.sh` — Legacy Arch/pacman/AUR installer + cleanup (Noctalia v4, unmaintained)
+- `config/niri/config.kdl` — Niri compositor config (KDL format); Noctalia binds use v5's `noctalia msg <verb>` IPC
+- `config/noctalia/config.toml` — Noctalia v5 shell settings (TOML; `__HOME__` placeholder replaced at install time)
 - `config/kitty/kitty.conf` — Kitty terminal config (Catppuccin Mocha)
 - `config/fish/config.fish` — Fish shell config (SSH agent, Wayland env vars, aliases)
 - `config/gtk-3.0/settings.ini` — GTK3 dark theme settings
@@ -20,24 +24,28 @@ Standalone niri compositor configuration for Arch Linux. The installer (`install
 ## Architecture
 
 - Fully standalone: no dependency on ML4W or Hyprland
-- Desktop shell: noctalia-shell (bar, notifications, wallpaper, lock screen, launcher, clipboard)
+- Desktop shell: Noctalia v5 (bar, notifications, wallpaper, lock screen, launcher, clipboard — built directly on Wayland/OpenGL ES, no Qt/GTK/Quickshell)
 - SSH auth: systemd ssh-agent.socket + lxqt-openssh-askpass (replaces gnome-keyring, kwallet)
 - XDG portals: xdg-desktop-portal-gnome via niri-portals.conf
 - Niri-specific: xwayland-satellite (X11 compat)
+- Package sources: openSUSE oss repo for most packages; OBS `home:neifua:Noctalia` for `noctalia`; Flatpak/Flathub for `zen-browser` (no native package); manual git-clone install for the Catppuccin SDDM theme (no OBS package)
 
-## Installer Steps
+## Installer Steps (`install-opensuse.sh`)
 
-1. Check prerequisites (Arch-based system)
-1b. Detect old compositors (hyprland, sway) and offer cleanup
-1c. Clean up broken symlinks in ~/.config
-2. Install packages (pacman + AUR)
-3. Copy configs (niri, noctalia, kitty, fish, GTK)
-3e. Create wallpaper + screenshot directories
-3f. Enable systemd ssh-agent.socket, disable gcr-ssh-agent
-3g. Disable conflicting services (swaync, dunst, mako, gnome-keyring, kwallet)
-3h. Configure XDG desktop portal (niri-portals.conf), remove conflicting portal backends
-3i. Set fish as default shell via chsh
-4. Install session files (start-niri.sh, niri.desktop, SDDM Catppuccin theme)
+1. Check prerequisites (zypper present, Tumbleweed/Slowroll via /etc/os-release)
+1b. Clean up broken symlinks in ~/.config
+2. Add repositories (`home:neifua:Noctalia`, `KDE:Frameworks` fallback for polkit-kde-agent-6)
+3. Install packages (zypper) + noctalia + polkit-kde-agent-6
+3a. Install zen-browser (flatpak/Flathub)
+3b. Install Catppuccin SDDM theme (git clone into /usr/share/sddm/themes/)
+3c–3h. Copy configs (niri, noctalia, kitty, fish, GTK), create wallpaper/screenshot dirs
+3i. Set system keyboard layout via localectl
+3j. Enable systemd ssh-agent.socket, disable gcr-ssh-agent
+3k. Disable conflicting services (swaync, dunst, mako, gnome-keyring, kwallet)
+3l. Configure XDG desktop portal (niri-portals.conf), remove conflicting portal backends
+3m. Set fish as default shell via chsh (ensuring the path is in /etc/shells)
+4. Install session files (start-niri.sh, niri.desktop)
+4a. Install and configure SDDM (service enable, graphical.target, Catppuccin theme drop-in)
 5. Validate niri config
 
 ## Conventions
@@ -46,5 +54,6 @@ Standalone niri compositor configuration for Arch Linux. The installer (`install
 - Always confirm before overwriting user files
 - Create `.bak` backups before modifying existing configs
 - The `output` section in config.kdl is auto-detected at install time via niri or DRM sysfs fallback
-- SDDM config updates use sed to preserve existing sections (e.g. autologin)
+- SDDM theme config is a drop-in at `/etc/sddm.conf.d/10-theme.conf` (openSUSE splits SDDM config across `/etc/sddm.conf.d/*.conf` rather than one monolithic file)
 - Keybindings use `hotkey-overlay-title` to show descriptions in the niri hotkey overlay
+- A few Noctalia v5 IPC bindings in config.kdl are best-effort guesses, not verified against a running instance (Control Center tab-jump tokens for network/calendar, and the emoji-picker launcher prefix) — flagged inline with comments; verify against `noctalia msg --help` on real hardware before trusting them

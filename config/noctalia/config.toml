@@ -1,0 +1,157 @@
+# Noctalia v5 configuration — hand-translated from the old v4 settings.json
+# (v5 has no migration tool from v4; this is a fresh config, not a converted one).
+# __HOME__ is replaced with $HOME by install-opensuse.sh at install time.
+
+[shell]
+clipboard_enabled = true
+clipboard_history_max_entries = 100
+clipboard_auto_paste = "auto"
+polkit_agent = false
+# avatar_path was ~/.face on the old setup
+avatar_path = "__HOME__/.face"
+
+[shell.launcher]
+sort_by_usage = true
+show_icons = true
+categories = true
+
+[shell.launcher.providers.calculator]
+prefix = ""
+global = true
+
+[shell.launcher.providers.emoji]
+prefix = "emo"
+
+[shell.launcher.providers.session]
+prefix = "session"
+global = false
+
+[shell.launcher.providers.wallpaper]
+prefix = "wall"
+
+[shell.launcher.providers.windows]
+prefix = "win"
+
+# ── Wallpaper ─────────────────────────────────────────────────────────────
+[wallpaper]
+enabled = true
+fill_mode = "crop"
+fill_color = "#1a1a2e"
+transition = ["random"]
+transition_duration = 1500
+edge_smoothness = 0.05
+directory = "__HOME__/Pictures/Wallpapers"
+
+[wallpaper.automation]
+enabled = false
+interval_minutes = 5
+order = "random"
+
+# ── Theme ─────────────────────────────────────────────────────────────────
+[theme]
+mode = "dark"
+source = "builtin"
+builtin = "Catppuccin"
+
+# ── Notifications ─────────────────────────────────────────────────────────
+[notification]
+enable_daemon = true
+show_app_name = true
+show_actions = true
+layer = "top"
+background_opacity = 1.0
+
+# ── Lock Screen ───────────────────────────────────────────────────────────
+[lockscreen]
+enabled = true
+
+# ── System Monitor ────────────────────────────────────────────────────────
+[system.monitor]
+enabled = true
+cpu_usage_activity_threshold = 80
+cpu_usage_critical_threshold = 90
+cpu_temp_activity_threshold = 80
+cpu_temp_critical_threshold = 90
+ram_pct_activity_threshold = 80
+ram_pct_critical_threshold = 90
+disk_pct_activity_threshold = 80
+disk_pct_critical_threshold = 90
+
+# ── Night Light ───────────────────────────────────────────────────────────
+[nightlight]
+enabled = false
+temperature_day = 6500
+temperature_night = 4000
+
+# ── Idle ──────────────────────────────────────────────────────────────────
+[idle.behavior.lock]
+timeout = 300
+action = "lock"
+enabled = true
+
+[idle.behavior.screen-off]
+timeout = 600
+action = "screen_off"
+enabled = true
+
+# suspendCommand was unset in the old config, so suspend-on-idle stays off
+[idle.behavior.suspend]
+timeout = 1800
+action = "suspend"
+enabled = false
+
+# ── Bar ───────────────────────────────────────────────────────────────────
+[bar.main]
+position = "top"
+background_opacity = 0.93
+radius = 12
+margin_h = 4
+margin_v = 4
+padding = 6
+widget_spacing = 6
+auto_hide = false
+reserve_space = true
+
+start  = ["launcher", "clock", "cpu", "cpu-temp", "ram", "active_window", "media"]
+center = ["workspaces"]
+end    = ["tray", "notifications", "battery", "volume", "brightness", "control-center"]
+
+[widget.cpu]
+type = "sysmon"
+stat = "cpu_usage"
+
+[widget.cpu-temp]
+type = "sysmon"
+stat = "cpu_temp"
+
+[widget.ram]
+type = "sysmon"
+stat = "ram_used"
+
+[widget.battery]
+type = "battery"
+device = "auto"
+display_mode = "graphic"
+warning_threshold = 20
+
+# ── Dock ──────────────────────────────────────────────────────────────────
+[dock]
+enabled = true
+position = "bottom"
+auto_hide = true
+
+# ── Control Center ────────────────────────────────────────────────────────
+[[control_center.shortcuts]]
+type = "wifi"
+[[control_center.shortcuts]]
+type = "bluetooth"
+[[control_center.shortcuts]]
+type = "wallpaper"
+[[control_center.shortcuts]]
+type = "nightlight"
+[[control_center.shortcuts]]
+type = "notification"
+
+# ── Hooks ─────────────────────────────────────────────────────────────────
+[hooks]
+battery_low_percent_threshold = 5
