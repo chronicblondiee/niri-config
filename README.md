@@ -69,9 +69,10 @@ sudo zypper install polkit-kde-agent-6 || {
     sudo zypper install polkit-kde-agent-6
 }
 
-# zen-browser (Flatpak — no native package)
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install flathub app.zen_browser.zen
+# zen-browser (Flatpak — no native package; --user avoids needing polkit's
+# system-wide Deploy authorization, which has no agent in a plain terminal/SSH session)
+flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install --user flathub app.zen_browser.zen
 
 # Catppuccin SDDM theme (no OBS package — install from source)
 git clone --depth 1 https://github.com/catppuccin/sddm.git /tmp/catppuccin-sddm

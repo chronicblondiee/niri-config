@@ -219,16 +219,18 @@ if ! command -v flatpak &>/dev/null; then
 fi
 
 if command -v flatpak &>/dev/null; then
-    if ! flatpak remote-list 2>/dev/null | grep -q flathub; then
-        if confirm "Add Flathub remote?"; then
-            sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    # --user scope: avoids the polkit "Deploy" authorization system-wide
+    # installs need, which has no agent to grant it from a plain terminal/SSH session
+    if ! flatpak remote-list --user 2>/dev/null | grep -q flathub; then
+        if confirm "Add Flathub remote (user scope)?"; then
+            flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
         fi
     fi
-    if flatpak list 2>/dev/null | grep -q app.zen_browser.zen; then
+    if flatpak list --user 2>/dev/null | grep -q app.zen_browser.zen; then
         ok "zen-browser already installed"
     else
-        if confirm "Install zen-browser via Flatpak?"; then
-            flatpak install -y flathub app.zen_browser.zen
+        if confirm "Install zen-browser via Flatpak (user scope)?"; then
+            flatpak install -y --user flathub app.zen_browser.zen
             ok "zen-browser installed"
         else
             warn "Skipping zen-browser — Mod+B will need a different browser"
