@@ -260,6 +260,9 @@ else
         if curl -sL -o "$TMP_THEME_DIR/theme.zip" "$CATPPUCCIN_ZIP_URL" \
             && unzip -q "$TMP_THEME_DIR/theme.zip" -d "$TMP_THEME_DIR"; then
             if [[ -d "$TMP_THEME_DIR/catppuccin-mocha-mauve" ]]; then
+                # sddm isn't installed until Step 4a, so /usr/share/sddm/themes/
+                # may not exist yet — create it regardless of step order
+                sudo mkdir -p /usr/share/sddm/themes
                 sudo cp -r "$TMP_THEME_DIR/catppuccin-mocha-mauve" /usr/share/sddm/themes/
                 ok "Catppuccin SDDM theme installed"
             else
