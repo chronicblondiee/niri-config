@@ -3,7 +3,40 @@
 // =============================================
 
 // ----- Outputs -----
-// __OUTPUT_BLOCK__ (replaced by install.sh with detected monitor)
+// Fixed hardware (same machine/monitors for every install — see CLAUDE.md):
+// Acer VG270U P 27" 1440p/144Hz on DP-2, Gigabyte MO34WQC2 34" ultrawide on
+// DP-1. Hardcoded rather than auto-detected: the single-monitor auto-detect
+// previously used here silently dropped the second output. Acer on the
+// left in portrait (transform "270"), ultrawide to its right; ultrawide is
+// primary (focus-at-startup). DP-2's logical size swaps to 1440x2560 under
+// the 90°-class transform, so DP-1's position.x is 1440 (not 2560) to stay
+// directly adjacent. DP-1's y=560 vertically centers its 1440-tall span
+// within DP-2's 2560-tall span ((2560-1440)/2=560) — top-aligned (y=0)
+// left the bottom ~44% of DP-2's edge with no adjacent output there, so
+// the cursor couldn't cross between monitors below that point. Refresh
+// rates must match `niri msg outputs` to the exact 3 decimal digits.
+output "DP-2" {
+    mode "2560x1440@143.995"
+    position x=0 y=0
+    scale 1.0
+    transform "270"
+}
+
+output "DP-1" {
+    mode "3440x1440@239.991"
+    position x=1440 y=560
+    scale 1.0
+    focus-at-startup
+}
+
+// ----- Cursor -----
+// Catppuccin Mocha Mauve cursors (matches the SDDM login theme's accent).
+// Sets XCURSOR_THEME/XCURSOR_SIZE for the whole session, not just niri.
+// Theme is installed to ~/.local/share/icons/ (see install-opensuse.sh).
+cursor {
+    xcursor-theme "catppuccin-mocha-mauve-cursors"
+    xcursor-size 18
+}
 
 // ----- Input -----
 input {

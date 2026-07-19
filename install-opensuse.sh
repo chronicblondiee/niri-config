@@ -303,73 +303,12 @@ else
     ok "Niri config installed to $NIRI_CONFIG_DIR/config.kdl"
 fi
 
-# Auto-detect monitor and replace __OUTPUT_BLOCK__ placeholder
-if [[ "$NIRI_CONFIG_INSTALLED" == "true" ]] && grep -q '__OUTPUT_BLOCK__' "$NIRI_CONFIG_DIR/config.kdl"; then
-    info "Detecting monitor output..."
-
-    OUTPUT_NAME=""
-    OUTPUT_MODE=""
-
-    # Method 1: niri msg outputs (if niri is running)
-    if command -v niri &>/dev/null && niri msg outputs &>/dev/null 2>&1; then
-        OUTPUT_NAME=$(niri msg outputs 2>/dev/null | grep '^Output' | head -1 | awk '{print $2}' | tr -d '"')
-        if [[ -n "$OUTPUT_NAME" ]]; then
-            OUTPUT_MODE=$(niri msg outputs 2>/dev/null | grep -A5 "^Output \"$OUTPUT_NAME\"" | grep 'current mode' | grep -oP '\d+x\d+@[\d.]+')
-        fi
-    fi
-
-    # Method 2: DRM sysfs fallback (works from TTY)
-    if [[ -z "$OUTPUT_NAME" ]]; then
-        for drm in /sys/class/drm/card*-*/; do
-            if [[ "$(cat "$drm/status" 2>/dev/null)" == "connected" ]]; then
-                OUTPUT_NAME=$(basename "$drm" | sed 's/^card[0-9]*-//')
-                OUTPUT_MODE=$(head -1 "$drm/modes" 2>/dev/null | tr -s ' ' | xargs)
-                if [[ -n "$OUTPUT_MODE" ]]; then
-                    OUTPUT_MODE=$(echo "$OUTPUT_MODE" | awk '{print $1}')
-                fi
-                break
-            fi
-        done
-    fi
-
-    # GNU sed's s/// treats a raw embedded newline in the replacement as ending
-    # the script ("unterminated `s' command"), so multi-line blocks are spliced
-    # in with awk instead, which prints the replacement text verbatim.
-    if [[ -n "$OUTPUT_NAME" ]]; then
-        ok "Detected output: $OUTPUT_NAME${OUTPUT_MODE:+ ($OUTPUT_MODE)}"
-
-        if [[ -n "$OUTPUT_MODE" ]]; then
-            OUTPUT_BLOCK="output \"$OUTPUT_NAME\" {
-    mode \"$OUTPUT_MODE\"
-    scale 1.0
-}"
-        else
-            OUTPUT_BLOCK="output \"$OUTPUT_NAME\" {
-    scale 1.0
-}"
-        fi
-
-        OUTPUT_BLOCK="$OUTPUT_BLOCK" awk '
-            /^\/\/ __OUTPUT_BLOCK__/ { print ENVIRON["OUTPUT_BLOCK"]; next }
-            { print }
-        ' "$NIRI_CONFIG_DIR/config.kdl" > "$NIRI_CONFIG_DIR/config.kdl.tmp" \
-            && mv "$NIRI_CONFIG_DIR/config.kdl.tmp" "$NIRI_CONFIG_DIR/config.kdl"
-        ok "Output block configured for $OUTPUT_NAME"
-    else
-        warn "Could not detect monitor — leaving output placeholder"
-        warn "Edit the output section in $NIRI_CONFIG_DIR/config.kdl manually"
-        FALLBACK_BLOCK='// No output detected — uncomment and edit:
-// output "DP-1" {
-//     mode "1920x1080"
-//     scale 1.0
-// }'
-        FALLBACK_BLOCK="$FALLBACK_BLOCK" awk '
-            /^\/\/ __OUTPUT_BLOCK__/ { print ENVIRON["FALLBACK_BLOCK"]; next }
-            { print }
-        ' "$NIRI_CONFIG_DIR/config.kdl" > "$NIRI_CONFIG_DIR/config.kdl.tmp" \
-            && mv "$NIRI_CONFIG_DIR/config.kdl.tmp" "$NIRI_CONFIG_DIR/config.kdl"
-    fi
-fi
+# The output block in config/niri/config.kdl is hardcoded for this specific
+# two-monitor hardware (Acer VG270U P on DP-2, Gigabyte MO34WQC2 on DP-1) —
+# no auto-detection needed since it's the same fixed hardware on every
+# install (see CLAUDE.md). If you swap monitors or ports, edit the `output`
+# blocks in $NIRI_CONFIG_DIR/config.kdl manually and check `niri msg outputs`
+# for the exact connector names/refresh rates.
 
 # ─────────────────────────────────────────────
 # Step 3d: Install noctalia config
@@ -464,6 +403,58 @@ for gtk_ver in 3.0 4.0; do
         ok "GTK ${gtk_ver} config installed"
     fi
 done
+
+# ─────────────────────────────────────────────
+# Step 3g2: Install Catppuccin cursor theme
+# ─────────────────────────────────────────────
+
+echo
+info "Step 3g2: Install Catppuccin cursor theme"
+
+CURSOR_THEME_NAME="catppuccin-mocha-mauve-cursors"
+CURSOR_THEME_DIR="$HOME/.local/share/icons/$CURSOR_THEME_NAME"
+CURSOR_ZIP_URL="https://github.com/catppuccin/cursors/releases/latest/download/${CURSOR_THEME_NAME}.zip"
+if [[ -d "$CURSOR_THEME_DIR" ]]; then
+    ok "Catppuccin cursor theme already installed"
+else
+    if confirm "Install Catppuccin Mocha Mauve cursor theme (downloads from GitHub releases)?"; then
+        if ! command -v unzip &>/dev/null; then
+            sudo zypper install -y unzip
+        fi
+        TMP_CURSOR_DIR=$(mktemp -d)
+        if curl -sL -o "$TMP_CURSOR_DIR/theme.zip" "$CURSOR_ZIP_URL" \
+            && unzip -q "$TMP_CURSOR_DIR/theme.zip" -d "$TMP_CURSOR_DIR"; then
+            if [[ -d "$TMP_CURSOR_DIR/$CURSOR_THEME_NAME" ]]; then
+                mkdir -p "$HOME/.local/share/icons"
+                cp -r "$TMP_CURSOR_DIR/$CURSOR_THEME_NAME" "$HOME/.local/share/icons/"
+                ok "Catppuccin cursor theme installed to $CURSOR_THEME_DIR"
+            else
+                warn "Unexpected zip layout — inspect $TMP_CURSOR_DIR manually"
+            fi
+        else
+            warn "Failed to download/extract cursor zip — install manually from https://github.com/catppuccin/cursors/releases"
+        fi
+        rm -rf "$TMP_CURSOR_DIR"
+    else
+        warn "Skipping cursor theme — config.kdl/GTK settings reference it, so the default theme will show until it's installed"
+    fi
+fi
+
+# xdg-desktop-portal-gnome (this repo's portal backend) reports cursor
+# theme/size to portal-aware GTK/Qt apps via the org.gnome.desktop.interface
+# GSettings schema — niri's own `cursor` block and gtk-3.0/4.0 settings.ini
+# don't reach those apps at all, so without this they'd keep showing
+# Adwaita/24 regardless of everything else being configured correctly.
+if command -v gsettings &>/dev/null; then
+    current_cursor_theme=$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null)
+    if [[ "$current_cursor_theme" == "'$CURSOR_THEME_NAME'" ]]; then
+        ok "GSettings cursor theme already set to $CURSOR_THEME_NAME"
+    else
+        gsettings set org.gnome.desktop.interface cursor-theme "$CURSOR_THEME_NAME"
+        gsettings set org.gnome.desktop.interface cursor-size 18
+        ok "GSettings cursor theme/size updated (portal-aware apps will now match)"
+    fi
+fi
 
 # ─────────────────────────────────────────────
 # Step 3h: Create wallpaper/screenshot directories
@@ -855,7 +846,7 @@ echo "  - Niri config:    $NIRI_CONFIG_DIR/config.kdl"
 echo "  - Noctalia shell: $NOCTALIA_CONFIG_DIR/config.toml (v5)"
 echo "  - Kitty terminal: $KITTY_CONFIG_DIR/kitty.conf"
 echo "  - Fish shell:     $FISH_CONFIG_DIR/config.fish"
-echo "  - GTK 3.0/4.0:    Dark theme + Adwaita cursor"
+echo "  - GTK 3.0/4.0:    Dark theme + Catppuccin Mocha Mauve cursor"
 echo "  - Wallpapers:     $WALLPAPER_DIR/"
 echo "  - Screenshots:    $HOME/Pictures/Screenshots/"
 echo "  - Keyboard:       ie (console + X11/Wayland)"

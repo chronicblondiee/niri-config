@@ -23,7 +23,7 @@ The installer is interactive and idempotent — every step asks for confirmation
 1. **Broken symlink cleanup** — scans `~/.config` for dead links from old setups
 2. **Repository setup** — adds the `home:neifua:Noctalia` OBS repo (and `KDE:Frameworks` as a fallback for `polkit-kde-agent-6`)
 3. **Package installation** — official oss repo via `zypper`, Noctalia via OBS, zen-browser via Flatpak/Flathub, Catppuccin SDDM theme via git clone
-4. **Config deployment** — niri, Noctalia v5, kitty, fish, GTK dark theme
+4. **Config deployment** — niri, Noctalia v5, kitty, fish, GTK dark theme, Catppuccin cursor theme via GitHub release zip
 5. **Directory setup** — `~/Pictures/Wallpapers/` and `~/Pictures/Screenshots/`
 6. **Keyboard layout** — sets console + X11/Wayland layout to `ie` (Ireland) via `localectl`
 7. **SSH agent** — enables `ssh-agent.socket`, disables conflicting agents (gnome-keyring, kwallet, gcr)
@@ -209,6 +209,7 @@ niri validate
 | X11 compat | xwayland-satellite |
 | SSH agent | systemd ssh-agent.socket + lxqt-openssh-askpass |
 | Login theme | Catppuccin Mocha (manual install, no OBS package) |
+| Cursor theme | Catppuccin Mocha Mauve (manual install, no OBS package) |
 
 ## Keybindings
 
@@ -338,30 +339,35 @@ Each `output` block supports:
 | `position` | Pixel position in the layout | `x=1920 y=0` |
 | `transform` | Rotation | `"normal"`, `"90"`, `"180"`, `"270"` |
 
-### Multi-monitor example
+### Current setup
+
+This repo's `config.kdl` hardcodes the actual fixed hardware rather than relying on auto-detection (which only ever configured the first-detected output — the second monitor was silently dropped):
 
 ```kdl
-// Vertical monitor on the left
+// Acer VG270U P 27" 1440p/144Hz — left
 output "DP-2" {
     mode "2560x1440@143.995"
-    position x=0 y=-560
-    transform "270"
+    position x=0 y=0
+    scale 1.0
 }
 
-// Ultrawide as primary
+// Gigabyte MO34WQC2 34" ultrawide — right, primary
 output "DP-1" {
     mode "3440x1440@239.991"
-    position x=1440 y=0
+    position x=2560 y=0
+    scale 1.0
+    focus-at-startup
 }
 ```
 
-Position values are in physical pixels. Use `niri msg outputs` to check logical vs physical sizes when calculating positions.
+Position values are in logical (scaled) pixels — with `scale 1.0` on both, that's the same as physical pixels here. Use `niri msg outputs` to check logical vs physical sizes when calculating positions for a different scale.
 
 ### Tips
 
-- Omit the `output` block entirely to let niri auto-detect (uses preferred mode, scale 1.0)
+- Explicit `position`/`mode` on every output beats letting niri auto-place them — automatic placement is fine for a single monitor, but is easy to get wrong (or have silently dropped, as happened here) with two or more
 - Set `scale 1.0` explicitly to prevent niri from auto-scaling on HiDPI panels
-- Available modes are listed in `niri msg outputs` — use the exact `WxH@rate` string
+- Available modes are listed in `niri msg outputs` — use the exact `WxH@rate` string, matching to the 3 decimal digits
+- `focus-at-startup` on an output picks which monitor gets initial focus (i.e. your "primary")
 - Changes take effect immediately on save (no restart needed)
 
 ## Repo Structure
