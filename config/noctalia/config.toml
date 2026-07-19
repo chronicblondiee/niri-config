@@ -143,6 +143,11 @@ warning_threshold = 20
 enabled = true
 position = "bottom"
 auto_hide = true
+# reserve_space defaults to true, which keeps the dock's exclusive zone
+# reserved even while auto-hidden — windows can't use that strip of screen,
+# leaving a gap where the dock would be. false lets windows use the full
+# screen and the dock overlays on top when it pops up on hover instead.
+reserve_space = false
 
 # ── Control Center ────────────────────────────────────────────────────────
 [[control_center.shortcuts]]
