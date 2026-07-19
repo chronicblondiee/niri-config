@@ -248,17 +248,25 @@ echo
 info "Step 3b: Install Catppuccin SDDM theme"
 
 CATPPUCCIN_THEME_DIR="/usr/share/sddm/themes/catppuccin-mocha-mauve"
+CATPPUCCIN_ZIP_URL="https://github.com/catppuccin/sddm/releases/latest/download/catppuccin-mocha-mauve-sddm.zip"
 if [[ -d "$CATPPUCCIN_THEME_DIR" ]]; then
     ok "Catppuccin SDDM theme already installed"
 else
-    if confirm "Install Catppuccin Mocha SDDM theme (clones catppuccin/sddm)?"; then
+    if confirm "Install Catppuccin Mocha SDDM theme (downloads from GitHub releases)?"; then
+        if ! command -v unzip &>/dev/null; then
+            sudo zypper install -y unzip
+        fi
         TMP_THEME_DIR=$(mktemp -d)
-        if git clone --depth 1 https://github.com/catppuccin/sddm.git "$TMP_THEME_DIR" 2>&1 | grep -v '^Cloning'; then :; fi
-        if [[ -d "$TMP_THEME_DIR/src/catppuccin-mocha-mauve" ]]; then
-            sudo cp -r "$TMP_THEME_DIR/src/catppuccin-mocha-mauve" "$CATPPUCCIN_THEME_DIR"
-            ok "Catppuccin SDDM theme installed"
+        if curl -sL -o "$TMP_THEME_DIR/theme.zip" "$CATPPUCCIN_ZIP_URL" \
+            && unzip -q "$TMP_THEME_DIR/theme.zip" -d "$TMP_THEME_DIR"; then
+            if [[ -d "$TMP_THEME_DIR/catppuccin-mocha-mauve" ]]; then
+                sudo cp -r "$TMP_THEME_DIR/catppuccin-mocha-mauve" /usr/share/sddm/themes/
+                ok "Catppuccin SDDM theme installed"
+            else
+                warn "Unexpected zip layout — inspect $TMP_THEME_DIR manually"
+            fi
         else
-            warn "Theme folder layout differs from expected — install manually from $TMP_THEME_DIR"
+            warn "Failed to download/extract theme zip — install manually from https://github.com/catppuccin/sddm/releases"
         fi
         rm -rf "$TMP_THEME_DIR"
     else
@@ -321,21 +329,42 @@ if [[ "$NIRI_CONFIG_INSTALLED" == "true" ]] && grep -q '__OUTPUT_BLOCK__' "$NIRI
         done
     fi
 
+    # GNU sed's s/// treats a raw embedded newline in the replacement as ending
+    # the script ("unterminated `s' command"), so multi-line blocks are spliced
+    # in with awk instead, which prints the replacement text verbatim.
     if [[ -n "$OUTPUT_NAME" ]]; then
         ok "Detected output: $OUTPUT_NAME${OUTPUT_MODE:+ ($OUTPUT_MODE)}"
 
         if [[ -n "$OUTPUT_MODE" ]]; then
-            OUTPUT_BLOCK="output \"$OUTPUT_NAME\" {\n    mode \"$OUTPUT_MODE\"\n    scale 1.0\n}"
+            OUTPUT_BLOCK="output \"$OUTPUT_NAME\" {
+    mode \"$OUTPUT_MODE\"
+    scale 1.0
+}"
         else
-            OUTPUT_BLOCK="output \"$OUTPUT_NAME\" {\n    scale 1.0\n}"
+            OUTPUT_BLOCK="output \"$OUTPUT_NAME\" {
+    scale 1.0
+}"
         fi
 
-        sed -i "s|// __OUTPUT_BLOCK__.*|$(echo -e "$OUTPUT_BLOCK")|" "$NIRI_CONFIG_DIR/config.kdl"
+        OUTPUT_BLOCK="$OUTPUT_BLOCK" awk '
+            /^\/\/ __OUTPUT_BLOCK__/ { print ENVIRON["OUTPUT_BLOCK"]; next }
+            { print }
+        ' "$NIRI_CONFIG_DIR/config.kdl" > "$NIRI_CONFIG_DIR/config.kdl.tmp" \
+            && mv "$NIRI_CONFIG_DIR/config.kdl.tmp" "$NIRI_CONFIG_DIR/config.kdl"
         ok "Output block configured for $OUTPUT_NAME"
     else
         warn "Could not detect monitor — leaving output placeholder"
         warn "Edit the output section in $NIRI_CONFIG_DIR/config.kdl manually"
-        sed -i 's|// __OUTPUT_BLOCK__.*|// No output detected — uncomment and edit:\n// output "DP-1" {\n//     mode "1920x1080"\n//     scale 1.0\n// }|' "$NIRI_CONFIG_DIR/config.kdl"
+        FALLBACK_BLOCK='// No output detected — uncomment and edit:
+// output "DP-1" {
+//     mode "1920x1080"
+//     scale 1.0
+// }'
+        FALLBACK_BLOCK="$FALLBACK_BLOCK" awk '
+            /^\/\/ __OUTPUT_BLOCK__/ { print ENVIRON["FALLBACK_BLOCK"]; next }
+            { print }
+        ' "$NIRI_CONFIG_DIR/config.kdl" > "$NIRI_CONFIG_DIR/config.kdl.tmp" \
+            && mv "$NIRI_CONFIG_DIR/config.kdl.tmp" "$NIRI_CONFIG_DIR/config.kdl"
     fi
 fi
 
