@@ -36,7 +36,7 @@ The installer is interactive and idempotent — every step asks for confirmation
 
 After installing, log out and select **Niri** from the SDDM session picker.
 
-A few Noctalia keybindings in `config.kdl` (notification history, network panel, calendar, emoji picker) are best-effort translations from v4 that haven't been verified against a running v5 instance — check them with `noctalia msg --help` after logging in and adjust if needed.
+A few Noctalia keybindings in `config.kdl` are best-effort translations from v4. The emoji-picker prefix (`/emo`) is now confirmed correct — it matches `shell.launcher.providers.emoji.prefix` in the real v5 settings schema (checked via `noctalia config export full`). The Control Center tab-jump tokens (notification history, network panel, calendar) are still unverified, since `noctalia msg` requires a running graphical session to query — check them with `noctalia msg --help` after logging in and adjust if needed.
 
 ## Legacy: Arch Linux
 
