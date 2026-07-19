@@ -776,7 +776,10 @@ if [[ -n "$SDDM_PKG" ]]; then
         ok "sddm.service already enabled"
     else
         if confirm "Enable sddm.service and set graphical.target as default?"; then
-            sudo systemctl enable sddm.service
+            # openSUSE preseeds /etc/systemd/system/display-manager.service as a
+            # symlink to display-manager-legacy.service on minimal installs with
+            # no DM chosen yet; --force lets sddm's alias replace it
+            sudo systemctl enable --force sddm.service
             sudo systemctl set-default graphical.target
             ok "sddm.service enabled, graphical.target set as default"
         else
