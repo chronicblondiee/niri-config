@@ -44,7 +44,7 @@ directory = "__HOME__/Pictures/Wallpapers"
 
 [wallpaper.automation]
 enabled = false
-interval_minutes = 5
+interval_seconds = 300
 order = "random"
 
 # ── Theme ─────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ enabled = true
 # suspendCommand was unset in the old config, so suspend-on-idle stays off
 [idle.behavior.suspend]
 timeout = 1800
-action = "suspend"
+action = "lock_and_suspend"
 enabled = false
 
 # ── Bar ───────────────────────────────────────────────────────────────────
@@ -105,8 +105,9 @@ enabled = false
 position = "top"
 background_opacity = 0.93
 radius = 12
-margin_h = 4
-margin_v = 4
+margin_edge = 4
+margin_opposite_edge = 0
+margin_ends = 4
 padding = 6
 widget_spacing = 6
 auto_hide = false
@@ -132,6 +133,9 @@ stat = "ram_used"
 type = "battery"
 device = "auto"
 display_mode = "graphic"
+
+# battery thresholds are a global service setting, not a per-widget one
+[battery]
 warning_threshold = 20
 
 # ── Dock ──────────────────────────────────────────────────────────────────
@@ -151,7 +155,3 @@ type = "wallpaper"
 type = "nightlight"
 [[control_center.shortcuts]]
 type = "notification"
-
-# ── Hooks ─────────────────────────────────────────────────────────────────
-[hooks]
-battery_low_percent_threshold = 5
