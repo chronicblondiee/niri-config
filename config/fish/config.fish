@@ -28,11 +28,3 @@ set -gx SSH_ASKPASS_REQUIRE prefer
 set -gx MOZ_ENABLE_WAYLAND 1
 set -gx QT_QPA_PLATFORM wayland
 set -gx GDK_BACKEND wayland
-
-# Cursor theme lookup path — works around a bug in the `xcursor` crate niri
-# uses (v0.3.10): when $XDG_DATA_HOME is set (as it is here), the crate
-# searches that path directly instead of appending "icons/", so themes in
-# ~/.local/share/icons/ are never found. Setting XCURSOR_PATH explicitly
-# bypasses that broken fallback entirely (it's checked first, before the
-# buggy XDG_DATA_HOME logic).
-set -gx XCURSOR_PATH "$HOME/.local/share/icons:$HOME/.icons:/usr/share/icons:/usr/share/pixmaps"
