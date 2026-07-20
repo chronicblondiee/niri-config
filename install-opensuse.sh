@@ -456,6 +456,25 @@ if command -v gsettings &>/dev/null; then
     fi
 fi
 
+# Same portal gap as above, but for dark mode: GTK 3.0/4.0 settings.ini sets
+# gtk-application-prefer-dark-theme=1/gtk-theme-name=Adwaita-dark, but that's
+# invisible to GTK4/libadwaita apps and modern Qt6 apps, which read dark-mode
+# state from the org.freedesktop.appearance portal setting instead — which
+# xdg-desktop-portal-gnome backs with these same GSettings keys, not the local
+# settings.ini files. Without this, GTK4/Qt6 apps and portal-aware browsers
+# (e.g. zen-browser/Firefox) can render light even though everything else here
+# is dark.
+if command -v gsettings &>/dev/null; then
+    current_color_scheme=$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null)
+    if [[ "$current_color_scheme" == "'prefer-dark'" ]]; then
+        ok "GSettings color scheme already set to prefer-dark"
+    else
+        gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+        gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
+        ok "GSettings dark mode enabled (portal-aware GTK4/Qt6 apps will now match)"
+    fi
+fi
+
 # ─────────────────────────────────────────────
 # Step 3h: Create wallpaper/screenshot directories
 # ─────────────────────────────────────────────
