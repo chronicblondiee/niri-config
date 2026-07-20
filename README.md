@@ -64,6 +64,7 @@ sudo zypper --gpg-auto-import-keys refresh
 # Official oss repo
 sudo zypper install niri xwayland-satellite xdg-desktop-portal-gnome \
     kitty fish nautilus wl-clipboard cliphist lxqt-openssh-askpass openssh \
+    gamemode gamemoded libgamemode0-32bit libgamemodeauto0-32bit gamescope \
     sddm noctalia
 
 # polkit-kde-agent-6 (add KDE:Frameworks only if the bare install fails)
@@ -95,9 +96,36 @@ sudo cp -r /tmp/catppuccin-sddm/src/catppuccin-mocha-mauve /usr/share/sddm/theme
 | `wl-clipboard` + `cliphist` | Clipboard history | oss repo |
 | `polkit-kde-agent-6` | Polkit authentication prompts | oss repo, fallback `KDE:Frameworks` |
 | `lxqt-openssh-askpass` | SSH key passphrase GUI prompt | oss repo |
+| `gamemode` / `gamemoded` | Opt-in game performance optimization client and daemon | oss repo |
+| `libgamemode0-32bit` / `libgamemodeauto0-32bit` | 32-bit GameMode client libraries for Steam/Proton games | oss repo |
+| `gamescope` | Opt-in gaming micro-compositor for scaling, frame limiting, and fullscreen isolation | oss repo |
 | `sddm` / `sddm-qt6` | Display manager | oss repo |
 | Catppuccin SDDM theme | Login theme | manual, [catppuccin/sddm](https://github.com/catppuccin/sddm) |
 | `app.zen_browser.zen` | Web browser | Flathub |
+
+GameMode remains opt-in per game. In Steam, set a game's launch options to:
+
+```text
+gamemoderun %command%
+```
+
+This asks `gamemoded` to apply temporary performance optimizations while that game is
+running; the installer does not modify Steam or wrap games globally. The installer also
+offers to add the installing user to the package-created `gamemode` group so governor and
+priority controls work; that new group membership requires a fresh login.
+
+Gamescope is also opt-in per game. To combine fullscreen Gamescope isolation with
+GameMode, use this Steam launch option:
+
+```text
+gamescope -f -- gamemoderun %command%
+```
+
+For games that need it, Gamescope also supports `-w`/`-h` for the game resolution,
+`-W`/`-H` for the output resolution, `-r` for a frame-rate limit, and `-F fsr` for
+FSR upscaling. Do not wrap Steam or every game globally; use these controls only when
+a specific game benefits from them. Niri enables outer-display VRR on demand for
+Gamescope and Steam game windows on either configured monitor.
 
 ### 2. Install configs
 
@@ -207,6 +235,7 @@ niri validate
 | Power/session menu | Noctalia v5 |
 | Lock screen | Noctalia v5 |
 | X11 compat | xwayland-satellite |
+| Gaming | GameMode + opt-in Gamescope; on-demand VRR on both displays |
 | SSH agent | systemd ssh-agent.socket + lxqt-openssh-askpass |
 | Login theme | Catppuccin Mocha (manual install, no OBS package) |
 | Cursor theme | Catppuccin Mocha Mauve (manual install, no OBS package) |
@@ -418,7 +447,7 @@ chsh -s /bin/bash
 systemctl --user disable ssh-agent.socket
 
 # Uninstall packages (optional)
-sudo zypper remove niri xwayland-satellite xdg-desktop-portal-gnome lxqt-openssh-askpass noctalia polkit-kde-agent-6
+sudo zypper remove niri xwayland-satellite xdg-desktop-portal-gnome lxqt-openssh-askpass noctalia polkit-kde-agent-6 gamescope
 flatpak uninstall app.zen_browser.zen
 sudo rm -rf /usr/share/sddm/themes/catppuccin-mocha-mauve /etc/sddm.conf.d/10-theme.conf
 sudo zypper removerepo noctalia-v5

@@ -156,6 +156,11 @@ ZYPPER_PACKAGES=(
     cliphist
     lxqt-openssh-askpass
     openssh
+    gamemode
+    gamemoded
+    libgamemode0-32bit
+    libgamemodeauto0-32bit
+    gamescope
 )
 MISSING=()
 for pkg in "${ZYPPER_PACKAGES[@]}"; do
@@ -171,6 +176,19 @@ else
         ok "Official packages installed"
     else
         warn "Skipping official package installation"
+    fi
+fi
+
+# GameMode's privileged governor/priority controls use the package-created group.
+GAMEMODE_USER="${SUDO_USER:-$USER}"
+if getent group gamemode &>/dev/null; then
+    if id -nG "$GAMEMODE_USER" | tr ' ' '\n' | grep -qx gamemode; then
+        ok "$GAMEMODE_USER is already in the gamemode group"
+    elif confirm "Add $GAMEMODE_USER to the gamemode group for governor/priority controls?"; then
+        sudo usermod -aG gamemode "$GAMEMODE_USER"
+        warn "GameMode group membership will take effect after a fresh login"
+    else
+        warn "Skipping gamemode group membership — some governor/priority controls may be unavailable"
     fi
 fi
 

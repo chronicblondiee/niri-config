@@ -30,13 +30,14 @@ The current installer (`install-opensuse.sh`) is interactive, idempotent, and cr
 - XDG portals: xdg-desktop-portal-gnome via niri-portals.conf
 - Niri-specific: xwayland-satellite (X11 compat)
 - Package sources: openSUSE oss repo for most packages; OBS `home:neifua:Noctalia` for `noctalia`; Flatpak/Flathub for `zen-browser` (no native package); manual GitHub-release-zip install for the Catppuccin SDDM theme and cursor theme (no OBS package for either)
+- Gaming: GameMode daemon, native and 32-bit client libraries, and Gamescope come from the openSUSE oss repo. GameMode activation stays opt-in per Steam game with `gamemoderun %command%`; Gamescope is also per-game with `gamescope -f -- gamemoderun %command%` (never wrap Steam or all games globally). The installer offers to add its invoking user to the package-created `gamemode` group; a fresh login is required after accepting. Both fixed outputs use on-demand VRR, enabled only by the `gamescope`/`steam_app_` window rule.
 
 ## Installer Steps (`install-opensuse.sh`)
 
 1. Check prerequisites (zypper present, Tumbleweed/Slowroll via /etc/os-release)
 1b. Clean up broken symlinks in ~/.config
 2. Add repositories (`home:neifua:Noctalia`, `KDE:Frameworks` fallback for polkit-kde-agent-6)
-3. Install packages (zypper) + noctalia + polkit-kde-agent-6
+3. Install packages (zypper), including GameMode, its 32-bit Steam/Proton libraries, and Gamescope, + noctalia + polkit-kde-agent-6
 3a. Install zen-browser (flatpak/Flathub)
 3b. Install Catppuccin SDDM theme (git clone into /usr/share/sddm/themes/)
 3c–3g. Copy configs (niri, noctalia, kitty, fish, GTK)

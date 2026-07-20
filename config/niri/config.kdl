@@ -20,6 +20,7 @@ output "DP-2" {
     position x=0 y=0
     scale 1.0
     transform "270"
+    variable-refresh-rate on-demand=true
 }
 
 output "DP-1" {
@@ -27,6 +28,7 @@ output "DP-1" {
     position x=1440 y=560
     scale 1.0
     focus-at-startup
+    variable-refresh-rate on-demand=true
 }
 
 // ----- Cursor -----
@@ -104,6 +106,7 @@ window-rule {
     match app-id=r#"^gamescope$"#
     match app-id=r#"^steam_app_"#
     open-fullscreen true
+    variable-refresh-rate true
 }
 
 window-rule {
