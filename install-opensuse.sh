@@ -149,6 +149,8 @@ ZYPPER_PACKAGES=(
     niri
     xwayland-satellite
     xdg-desktop-portal-gnome
+    xdg-desktop-portal-gtk
+    gnome-keyring
     kitty
     fish
     nautilus
@@ -224,11 +226,11 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 3a: Install zen-browser (flatpak)
+# Step 3a: Install Flatpak applications
 # ─────────────────────────────────────────────
 
 echo
-info "Step 3a: Install zen-browser (Flatpak)"
+info "Step 3a: Install Flatpak applications"
 
 if ! command -v flatpak &>/dev/null; then
     if confirm "Install flatpak?"; then
@@ -254,8 +256,26 @@ if command -v flatpak &>/dev/null; then
             warn "Skipping zen-browser — Mod+B will need a different browser"
         fi
     fi
+
+    if flatpak list --user 2>/dev/null | grep -q dev.vencord.Vesktop; then
+        ok "Vesktop already installed"
+    else
+        if confirm "Install Vesktop via Flatpak (user scope)?"; then
+            flatpak install -y --user flathub dev.vencord.Vesktop
+            ok "Vesktop installed"
+        else
+            warn "Skipping Vesktop — Discord screen sharing may not work on niri"
+        fi
+    fi
+
+    if flatpak list --user 2>/dev/null | grep -q dev.vencord.Vesktop; then
+        # Vesktop defaults to X11 when it is available. Denying both X11
+        # sockets makes the Flatpak use its native Wayland backend.
+        flatpak override --user --nosocket=x11 --nosocket=fallback-x11 dev.vencord.Vesktop
+        ok "Vesktop configured for native Wayland"
+    fi
 else
-    warn "flatpak not available, skipping zen-browser"
+    warn "flatpak not available, skipping zen-browser and Vesktop"
 fi
 
 # ─────────────────────────────────────────────
@@ -685,17 +705,27 @@ if [[ ${#CONFLICTING_PORTALS[@]} -gt 0 ]]; then
     fi
 fi
 
-if [[ -f "$PORTAL_CONF" ]]; then
-    ok "Portal config already exists: $PORTAL_CONF"
-else
-    cat > "$PORTAL_CONF" <<'PORTAL_EOF'
+PORTAL_CONFIG_CONTENT=$(cat <<'PORTAL_EOF'
 [preferred]
-default=gnome
-org.freedesktop.impl.portal.Access=gnome
-org.freedesktop.impl.portal.FileChooser=gnome
-org.freedesktop.impl.portal.Screenshot=gnome
-org.freedesktop.impl.portal.Screencast=gnome
+default=gnome;gtk;
+org.freedesktop.impl.portal.Access=gtk;
+org.freedesktop.impl.portal.Notification=gtk;
+org.freedesktop.impl.portal.Secret=gnome-keyring;
 PORTAL_EOF
+)
+
+if [[ -f "$PORTAL_CONF" ]]; then
+    if [[ "$(cat "$PORTAL_CONF")" == "$PORTAL_CONFIG_CONTENT" ]]; then
+        ok "Portal config is current: $PORTAL_CONF"
+    elif confirm "Replace outdated portal config with the current niri defaults?" "y"; then
+        backup_file "$PORTAL_CONF"
+        printf '%s\n' "$PORTAL_CONFIG_CONTENT" > "$PORTAL_CONF"
+        ok "Portal config updated"
+    else
+        warn "Keeping existing portal config — screen sharing may not work correctly"
+    fi
+else
+    printf '%s\n' "$PORTAL_CONFIG_CONTENT" > "$PORTAL_CONF"
     ok "Portal config installed: $PORTAL_CONF"
 fi
 

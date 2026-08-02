@@ -8,7 +8,8 @@ Standalone [niri](https://github.com/YaLTeR/niri) scrollable-tiling Wayland comp
 
 - openSUSE Tumbleweed or Slowroll (Noctalia v5 needs `sdbus-c++` >= 2.x, not available on Leap)
 - SDDM display manager (installed by the installer if missing)
-- Flatpak + Flathub, for zen-browser (installed by the installer if missing)
+- GNOME and GTK XDG portal backends plus gnome-keyring's Secret portal (installed by the installer if missing)
+- Flatpak + Flathub, for zen-browser and Vesktop (installed by the installer if missing)
 
 ## Quick Install
 
@@ -22,13 +23,13 @@ The installer is interactive and idempotent — every step asks for confirmation
 
 1. **Broken symlink cleanup** — scans `~/.config` for dead links from old setups
 2. **Repository setup** — adds the `home:neifua:Noctalia` OBS repo (and `KDE:Frameworks` as a fallback for `polkit-kde-agent-6`)
-3. **Package installation** — official oss repo via `zypper`, Noctalia via OBS, zen-browser via Flatpak/Flathub, Catppuccin SDDM theme via git clone
+3. **Package installation** — official oss repo via `zypper`, Noctalia via OBS, zen-browser and Vesktop via Flatpak/Flathub, Catppuccin SDDM theme via git clone
 4. **Config deployment** — niri, Noctalia v5, kitty, fish, GTK dark theme, Catppuccin cursor theme via GitHub release zip
 5. **Directory setup** — `~/Pictures/Wallpapers/` and `~/Pictures/Screenshots/`
 6. **Keyboard layout** — sets console + X11/Wayland layout to `ie` (Ireland) via `localectl`
 7. **SSH agent** — enables `ssh-agent.socket`, disables conflicting agents (gnome-keyring, kwallet, gcr)
 8. **Service cleanup** — masks conflicting notification daemons (swaync, dunst, mako)
-9. **XDG portals** — configures `xdg-desktop-portal-gnome`, removes conflicting backends
+9. **XDG portals** — configures GNOME, GTK, and gnome-keyring providers using Niri's upstream routing, and removes conflicting backends
 10. **Default shell** — sets fish via `chsh` (adding it to `/etc/shells` if needed)
 11. **Session environment** — installs `~/.config/environment.d/10-niri-cursor.conf` (`XCURSOR_PATH`), and cleans up the retired `start-niri.sh` wrapper if an older run installed one
 12. **SDDM** — installs/enables SDDM, sets `graphical.target`, configures the Catppuccin Mocha theme, and forces `niri.desktop` as SDDM's remembered/preselected session (openSUSE's minimal-X install already logged in once with IceWM before you ran this, so SDDM would otherwise keep defaulting back to it)
@@ -63,6 +64,7 @@ sudo zypper --gpg-auto-import-keys refresh
 
 # Official oss repo
 sudo zypper install niri xwayland-satellite xdg-desktop-portal-gnome \
+    xdg-desktop-portal-gtk gnome-keyring \
     kitty fish nautilus wl-clipboard cliphist lxqt-openssh-askpass openssh \
     gamemode gamemoded libgamemode0-32bit libgamemodeauto0-32bit gamescope \
     sddm noctalia
@@ -77,7 +79,10 @@ sudo zypper install polkit-kde-agent-6 || {
 # zen-browser (Flatpak — no native package; --user avoids needing polkit's
 # system-wide Deploy authorization, which has no agent in a plain terminal/SSH session)
 flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install --user flathub app.zen_browser.zen
+flatpak install --user flathub app.zen_browser.zen dev.vencord.Vesktop
+
+# Vesktop defaults to X11 when it is available; force its native Wayland backend.
+flatpak override --user --nosocket=x11 --nosocket=fallback-x11 dev.vencord.Vesktop
 
 # Catppuccin SDDM theme (no OBS package — install from source)
 git clone --depth 1 https://github.com/catppuccin/sddm.git /tmp/catppuccin-sddm
@@ -89,7 +94,9 @@ sudo cp -r /tmp/catppuccin-sddm/src/catppuccin-mocha-mauve /usr/share/sddm/theme
 | `niri` | Scrollable-tiling Wayland compositor | oss repo |
 | `noctalia` | Desktop shell v5 (bar, notifications, wallpaper, lock screen) | OBS `home:neifua:Noctalia` |
 | `xwayland-satellite` | X11 app compatibility for niri | oss repo |
-| `xdg-desktop-portal-gnome` | Screen sharing, file dialogs | oss repo |
+| `xdg-desktop-portal-gnome` | Default portal provider, including screen sharing and file dialogs | oss repo |
+| `xdg-desktop-portal-gtk` | Access and notification portals, plus fallback portal interfaces | oss repo |
+| `gnome-keyring` | Secret portal provider | oss repo |
 | `kitty` | Terminal emulator | oss repo |
 | `fish` | Fish shell | oss repo |
 | `nautilus` | File manager | oss repo |
@@ -102,6 +109,7 @@ sudo cp -r /tmp/catppuccin-sddm/src/catppuccin-mocha-mauve /usr/share/sddm/theme
 | `sddm` / `sddm-qt6` | Display manager | oss repo |
 | Catppuccin SDDM theme | Login theme | manual, [catppuccin/sddm](https://github.com/catppuccin/sddm) |
 | `app.zen_browser.zen` | Web browser | Flathub |
+| `dev.vencord.Vesktop` | Discord client with Linux Wayland screen sharing and audio | Flathub |
 
 GameMode remains opt-in per game. In Steam, set a game's launch options to:
 
@@ -184,12 +192,14 @@ sudo zypper remove xdg-desktop-portal-hyprland xdg-desktop-portal-wlr 2>/dev/nul
 mkdir -p ~/.config/xdg-desktop-portal
 cat > ~/.config/xdg-desktop-portal/niri-portals.conf <<'EOF'
 [preferred]
-default=gnome
-org.freedesktop.impl.portal.Access=gnome
-org.freedesktop.impl.portal.FileChooser=gnome
-org.freedesktop.impl.portal.Screenshot=gnome
-org.freedesktop.impl.portal.Screencast=gnome
+default=gnome;gtk;
+org.freedesktop.impl.portal.Access=gtk;
+org.freedesktop.impl.portal.Notification=gtk;
+org.freedesktop.impl.portal.Secret=gnome-keyring;
 EOF
+
+# Do not export GDK_BACKEND globally; niri's GNOME screencast portal requires
+# GTK to select its backend for each process.
 
 # Set fish as default shell
 grep -qx /usr/bin/fish /etc/shells || echo /usr/bin/fish | sudo tee -a /etc/shells
@@ -222,6 +232,14 @@ printf '[Theme]\nCurrent=catppuccin-mocha-mauve\n' | sudo tee /etc/sddm.conf.d/1
 ```bash
 niri validate
 ```
+
+### Discord and screen sharing on Tumbleweed
+
+The official Discord client fails PipeWire DMA-BUF format negotiation with Niri on this system. Both its Xwayland and native Wayland backends were tested, as was Niri's compositor-wide `force-pipewire-invalid-modifier` fallback; all failed with `Error("no more input formats")`. Those ineffective workarounds are not part of this configuration.
+
+Use [Vesktop](https://vesktop.dev/) instead. It is designed for Linux Wayland and supports screen sharing with system audio. The installer uses its user-scoped Flatpak and denies X11 sockets so it runs through native Wayland.
+
+The Flatpak intentionally keeps its default restricted file access. Drag-and-drop or file pasting may therefore be limited to portal-selected files, and ordinary game process scanning for Rich Presence is unavailable. Do not grant Vesktop broad home-directory access unless that tradeoff is explicitly desired.
 
 ## Components
 
@@ -448,8 +466,8 @@ chsh -s /bin/bash
 systemctl --user disable ssh-agent.socket
 
 # Uninstall packages (optional)
-sudo zypper remove niri xwayland-satellite xdg-desktop-portal-gnome lxqt-openssh-askpass noctalia polkit-kde-agent-6 gamescope
-flatpak uninstall app.zen_browser.zen
+sudo zypper remove niri xwayland-satellite xdg-desktop-portal-gnome xdg-desktop-portal-gtk gnome-keyring lxqt-openssh-askpass noctalia polkit-kde-agent-6 gamescope
+flatpak uninstall --user app.zen_browser.zen dev.vencord.Vesktop
 sudo rm -rf /usr/share/sddm/themes/catppuccin-mocha-mauve /etc/sddm.conf.d/10-theme.conf
 sudo zypper removerepo noctalia-v5
 ```

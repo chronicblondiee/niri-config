@@ -26,9 +26,10 @@ The current installer (`install-opensuse.sh`) is interactive, idempotent, and cr
 - Fully standalone: no dependency on ML4W or Hyprland
 - Desktop shell: Noctalia v5 (bar, notifications, wallpaper, lock screen, launcher, clipboard — built directly on Wayland/OpenGL ES, no Qt/GTK/Quickshell)
 - SSH auth: systemd ssh-agent.socket + lxqt-openssh-askpass (replaces gnome-keyring, kwallet)
-- XDG portals: xdg-desktop-portal-gnome via niri-portals.conf
+- XDG portals: `xdg-desktop-portal-gnome` (default and screencasting), `xdg-desktop-portal-gtk` (Access and Notification), and `gnome-keyring` (Secret), routed via Niri's upstream `niri-portals.conf`
+- Do not export `GDK_BACKEND` globally. Niri's GNOME screencast portal requires GTK to choose its backend per process.
 - Niri-specific: xwayland-satellite (X11 compat)
-- Package sources: openSUSE oss repo for most packages; OBS `home:neifua:Noctalia` for `noctalia`; Flatpak/Flathub for `zen-browser` (no native package); manual GitHub-release-zip install for the Catppuccin SDDM theme and cursor theme (no OBS package for either)
+- Package sources: openSUSE oss repo for most packages, including the complete GNOME/GTK/gnome-keyring portal set; OBS `home:neifua:Noctalia` for `noctalia`; Flatpak/Flathub for `zen-browser` (no native package) and Vesktop; manual GitHub-release-zip install for the Catppuccin SDDM theme and cursor theme (no OBS package for either)
 - Gaming: GameMode daemon, native and 32-bit client libraries, and Gamescope come from the openSUSE oss repo. GameMode activation stays opt-in per Steam game with `gamemoderun %command%`; Gamescope is also per-game with `gamescope -f -- gamemoderun %command%` (never wrap Steam or all games globally). The installer offers to add its invoking user to the package-created `gamemode` group; a fresh login is required after accepting. Both fixed outputs use on-demand VRR, enabled only by the `gamescope`/`steam_app_` window rule.
 
 ## Installer Steps (`install-opensuse.sh`)
@@ -36,8 +37,8 @@ The current installer (`install-opensuse.sh`) is interactive, idempotent, and cr
 1. Check prerequisites (zypper present, Tumbleweed/Slowroll via /etc/os-release)
 1b. Clean up broken symlinks in ~/.config
 2. Add repositories (`home:neifua:Noctalia`, `KDE:Frameworks` fallback for polkit-kde-agent-6)
-3. Install packages (zypper), including GameMode, its 32-bit Steam/Proton libraries, and Gamescope, + noctalia + polkit-kde-agent-6
-3a. Install zen-browser (flatpak/Flathub)
+3. Install packages (zypper), including the GNOME/GTK/gnome-keyring portal providers, GameMode, its 32-bit Steam/Proton libraries, and Gamescope, + noctalia + polkit-kde-agent-6
+3a. Install zen-browser and Vesktop (flatpak/Flathub), forcing Vesktop to native Wayland by denying X11 sockets
 3b. Install Catppuccin SDDM theme (git clone into /usr/share/sddm/themes/)
 3c–3g. Copy configs (niri, noctalia, kitty, fish, GTK)
 3g2. Install Catppuccin Mocha Mauve cursor theme (GitHub release zip into ~/.local/share/icons/)

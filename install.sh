@@ -511,17 +511,27 @@ if [[ ${#CONFLICTING_PORTALS[@]} -gt 0 ]]; then
     fi
 fi
 
-if [[ -f "$PORTAL_CONF" ]]; then
-    ok "Portal config already exists: $PORTAL_CONF"
-else
-    cat > "$PORTAL_CONF" <<'PORTAL_EOF'
+PORTAL_CONFIG_CONTENT=$(cat <<'PORTAL_EOF'
 [preferred]
-default=gnome
-org.freedesktop.impl.portal.Access=gnome
-org.freedesktop.impl.portal.FileChooser=gnome
-org.freedesktop.impl.portal.Screenshot=gnome
-org.freedesktop.impl.portal.Screencast=gnome
+default=gnome;gtk;
+org.freedesktop.impl.portal.Access=gtk;
+org.freedesktop.impl.portal.Notification=gtk;
+org.freedesktop.impl.portal.Secret=gnome-keyring;
 PORTAL_EOF
+)
+
+if [[ -f "$PORTAL_CONF" ]]; then
+    if [[ "$(cat "$PORTAL_CONF")" == "$PORTAL_CONFIG_CONTENT" ]]; then
+        ok "Portal config is current: $PORTAL_CONF"
+    elif confirm "Replace outdated portal config with the current niri defaults?" "y"; then
+        backup_file "$PORTAL_CONF"
+        printf '%s\n' "$PORTAL_CONFIG_CONTENT" > "$PORTAL_CONF"
+        ok "Portal config updated"
+    else
+        warn "Keeping existing portal config — screen sharing may not work correctly"
+    fi
+else
+    printf '%s\n' "$PORTAL_CONFIG_CONTENT" > "$PORTAL_CONF"
     ok "Portal config installed: $PORTAL_CONF"
 fi
 
