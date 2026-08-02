@@ -730,42 +730,56 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Step 4: Install session files
+# Step 4: Install session environment
 # ─────────────────────────────────────────────
 
 echo
-info "Step 4: Install session files"
+info "Step 4: Install session environment"
 
-mkdir -p "$HOME/.local/bin"
-if [[ -f "$HOME/.local/bin/start-niri.sh" ]]; then
-    ok "start-niri.sh already exists in ~/.local/bin/"
-    if confirm "Overwrite?" "n"; then
-        cp "$SCRIPT_DIR/sessions/start-niri.sh" "$HOME/.local/bin/start-niri.sh"
-        chmod +x "$HOME/.local/bin/start-niri.sh"
-        ok "start-niri.sh updated"
+# The packaged /usr/share/wayland-sessions/niri.desktop launches niri-session
+# directly, which starts niri as a systemd user service. environment.d is read
+# by the systemd user manager, so anything set here reaches niri no matter which
+# session entry started it — and unlike a file under /usr, zypper can never
+# overwrite it. (This repo used to ship a start-niri.sh wrapper installed over
+# the packaged niri.desktop; that file isn't marked %config, so every niri
+# update silently reverted it and took the XCURSOR_PATH fix with it.)
+ENV_D_DIR="$HOME/.config/environment.d"
+ENV_D_CONF="$ENV_D_DIR/10-niri-cursor.conf"
+ENV_D_CONTENT=$(sed "s|__HOME__|$HOME|g" "$SCRIPT_DIR/config/environment.d/10-niri-cursor.conf")
+
+mkdir -p "$ENV_D_DIR"
+if [[ -f "$ENV_D_CONF" ]]; then
+    if [[ "$(cat "$ENV_D_CONF")" == "$ENV_D_CONTENT" ]]; then
+        ok "Session environment is current: $ENV_D_CONF"
+    elif confirm "Replace outdated session environment config?" "y"; then
+        backup_file "$ENV_D_CONF"
+        printf '%s\n' "$ENV_D_CONTENT" > "$ENV_D_CONF"
+        ok "Session environment updated (effective next login)"
+    else
+        warn "Keeping existing $ENV_D_CONF — the cursor theme may not load"
     fi
 else
-    cp "$SCRIPT_DIR/sessions/start-niri.sh" "$HOME/.local/bin/start-niri.sh"
-    chmod +x "$HOME/.local/bin/start-niri.sh"
-    ok "start-niri.sh installed to ~/.local/bin/"
+    printf '%s\n' "$ENV_D_CONTENT" > "$ENV_D_CONF"
+    ok "Session environment installed: $ENV_D_CONF (effective next login)"
 fi
 
-# The niri package ships its own /usr/share/wayland-sessions/niri.desktop pointing
-# straight at niri-session; override it with the start-niri.sh wrapper so
-# XDG_CURRENT_DESKTOP/XDG_SESSION_DESKTOP get set first. Re-applied on every run
-# since a niri package upgrade can silently restore the packaged version.
+# Clean up the retired wrapper from earlier versions of this installer.
 SESSION_FILE="/usr/share/wayland-sessions/niri.desktop"
 if [[ -f "$SESSION_FILE" ]] && grep -q "start-niri.sh" "$SESSION_FILE"; then
-    ok "Session entry already points to start-niri.sh"
-else
-    if [[ -f "$SESSION_FILE" ]]; then
-        info "Current session entry uses: $(grep '^Exec=' "$SESSION_FILE")"
-    fi
-    if confirm "Install/update $SESSION_FILE to use the start-niri.sh wrapper?" "y"; then
-        sed "s|__HOME__|$HOME|g" "$SCRIPT_DIR/sessions/niri.desktop" | sudo tee "$SESSION_FILE" >/dev/null
-        ok "SDDM session entry installed"
+    warn "$SESSION_FILE still points at the retired start-niri.sh wrapper"
+    if confirm "Restore the packaged niri session entry?" "y"; then
+        sudo zypper install -f -y niri
+        ok "Packaged session entry restored"
     else
-        warn "Skipping SDDM session entry"
+        warn "Leaving the wrapper entry in place — it must exist or login will fail"
+    fi
+fi
+
+if [[ -f "$HOME/.local/bin/start-niri.sh" ]] \
+    && ! grep -q "start-niri.sh" "$SESSION_FILE" 2>/dev/null; then
+    if confirm "Remove the now-unused $HOME/.local/bin/start-niri.sh?" "y"; then
+        rm -f "$HOME/.local/bin/start-niri.sh"
+        ok "Retired session wrapper removed"
     fi
 fi
 
@@ -889,8 +903,8 @@ echo "  - Screenshots:    $HOME/Pictures/Screenshots/"
 echo "  - Keyboard:       ie (console + X11/Wayland)"
 echo "  - SSH agent:      systemd ssh-agent.socket + lxqt-openssh-askpass"
 echo "  - XDG portal:     $PORTAL_CONF_DIR/niri-portals.conf"
-echo "  - Session script: $HOME/.local/bin/start-niri.sh"
-echo "  - SDDM entry:     /usr/share/wayland-sessions/niri.desktop"
+echo "  - Session env:    $ENV_D_CONF (XCURSOR_PATH)"
+echo "  - SDDM entry:     /usr/share/wayland-sessions/niri.desktop (packaged)"
 echo "  - SDDM default:   niri.desktop preselected (/var/lib/sddm/state.conf)"
 echo
 warn "A few keybinds were ported as best-effort guesses (not verified against a"

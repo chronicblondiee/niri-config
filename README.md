@@ -30,7 +30,7 @@ The installer is interactive and idempotent — every step asks for confirmation
 8. **Service cleanup** — masks conflicting notification daemons (swaync, dunst, mako)
 9. **XDG portals** — configures `xdg-desktop-portal-gnome`, removes conflicting backends
 10. **Default shell** — sets fish via `chsh` (adding it to `/etc/shells` if needed)
-11. **Session files** — installs `start-niri.sh`, SDDM session entry
+11. **Session environment** — installs `~/.config/environment.d/10-niri-cursor.conf` (`XCURSOR_PATH`), and cleans up the retired `start-niri.sh` wrapper if an older run installed one
 12. **SDDM** — installs/enables SDDM, sets `graphical.target`, configures the Catppuccin Mocha theme, and forces `niri.desktop` as SDDM's remembered/preselected session (openSUSE's minimal-X install already logged in once with IceWM before you ran this, so SDDM would otherwise keep defaulting back to it)
 13. **Validation** — runs `niri validate`
 
@@ -196,15 +196,17 @@ grep -qx /usr/bin/fish /etc/shells || echo /usr/bin/fish | sudo tee -a /etc/shel
 chsh -s /usr/bin/fish
 ```
 
-### 4. Install session files
+### 4. Install session environment
+
+The niri package's own `/usr/share/wayland-sessions/niri.desktop` is used as-is — don't override
+it, since a package update reinstalls the file and silently drops any customization. Session-wide
+environment goes in `environment.d` instead, which the systemd user manager reads before starting
+`niri.service`.
 
 ```bash
-mkdir -p ~/.local/bin
-cp sessions/start-niri.sh ~/.local/bin/start-niri.sh
-chmod +x ~/.local/bin/start-niri.sh
-
-# SDDM session entry (requires sudo) — overrides the niri package's own entry
-sed "s|__HOME__|$HOME|g" sessions/niri.desktop | sudo tee /usr/share/wayland-sessions/niri.desktop >/dev/null
+mkdir -p ~/.config/environment.d
+sed "s|__HOME__|$HOME|g" config/environment.d/10-niri-cursor.conf \
+    > ~/.config/environment.d/10-niri-cursor.conf
 
 # Enable SDDM
 sudo systemctl enable sddm.service
@@ -419,11 +421,10 @@ Position values are in logical (scaled) pixels — with `scale 1.0` on both, tha
 │   │   └── config.fish
 │   ├── gtk-3.0/
 │   │   └── settings.ini
-│   └── gtk-4.0/
-│       └── settings.ini
-└── sessions/
-    ├── niri.desktop
-    └── start-niri.sh
+│   ├── gtk-4.0/
+│   │   └── settings.ini
+│   └── environment.d/
+│       └── 10-niri-cursor.conf
 ```
 
 ## Wallpapers
@@ -436,9 +437,9 @@ Catppuccin Mocha wallpapers from [orangci/walls-catppuccin-mocha](https://github
 # Remove configs
 rm -rf ~/.config/niri ~/.config/noctalia ~/.config/xdg-desktop-portal/niri-portals.conf
 
-# Remove session files
-rm ~/.local/bin/start-niri.sh
-sudo rm /usr/share/wayland-sessions/niri.desktop
+# Remove session environment (leave /usr/share/wayland-sessions/niri.desktop
+# alone — it belongs to the niri package and goes away with it)
+rm ~/.config/environment.d/10-niri-cursor.conf
 
 # Restore default shell
 chsh -s /bin/bash
